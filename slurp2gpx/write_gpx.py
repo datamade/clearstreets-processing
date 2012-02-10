@@ -2,11 +2,10 @@ import sqlite3
 from osgeo import osr
 from osgeo import ogr
 import time, datetime
-from ftplib import FTP
 import os
 import glob
 
-path = "/home/fgregg/academic/snowplow/"
+path = "./"
 
 ####################################################
 ## Define our Coordinate Reprojections
@@ -29,7 +28,7 @@ drv = ogr.GetDriverByName(driverName)
 
 ####################################################
 ## Setup the SQL db
-con = sqlite3.connect(path + "plow.db")
+con = sqlite3.connect("plow.db")
 cur = con.cursor()
 
 ## Create trace for each asset
@@ -48,10 +47,10 @@ while True:
         if len(plow_track) < 2:
             continue
 
-        ds = drv.CreateDataSource(plow_name + ".gpx")
+        ds = drv.CreateDataSource("../gpx/" + plow_name + ".gpx")
         if ds is None:
-            os.remove(plow_name + ".gpx")
-            ds = drv.CreateDataSource(plow_name + ".gpx")
+            os.remove("../gpx/" + plow_name + ".gpx")
+            ds = drv.CreateDataSource("../gpx/" + plow_name + ".gpx")
         
         layer = ds.CreateLayer("track_points", None, ogr.wkbPoint)
 
@@ -83,22 +82,7 @@ while True:
 
         layer.SyncToDisk()
         ds = None
-        
-    ftp = FTP('bunkum.us')
-    ftp.login('fgregg', 'mang33dawg')
-    ftp.cwd('www/gpx')
-    for infile in glob.glob( os.path.join(path, '*.gpx')) :
-        f = open(infile, 'rb')
-        try:
-            ftp.storlines("STOR " + os.path.basename(infile), f)
-        except:
-            pass
-        f.close()
-
-    ftp.close()
-    print 'Upload done'
-    time.sleep(60*5)
-
+    time.sleep(10)        
 
 
 con.close()

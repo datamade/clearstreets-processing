@@ -9,7 +9,7 @@ gps_data_url = "https://gisapps.cityofchicago.org/ArcGISRest/services/ExternalAp
 
 time_format = "%a %b %d %H:%M:%S %Z %Y"
 
-con = sqlite3.connect("/home/fgregg/academic/snowplow/plow.db")
+con = sqlite3.connect("plow.db")
 cur = con.cursor()
 cur.execute("CREATE TABLE IF NOT EXISTS route_points (object_id INTEGER, posting_time DATETIME, X DOUBLE, Y DOUBLE, UNIQUE(object_id, posting_time) ON CONFLICT REPLACE)")
 cur.execute("CREATE TABLE IF NOT EXISTS assets (object_id INTEGER, asset_name TEXT, asset_type TEXT, PRIMARY KEY(object_id) ON CONFLICT REPLACE)")
