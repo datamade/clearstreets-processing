@@ -42,18 +42,22 @@ cur.execute("CREATE TABLE IF NOT EXISTS assets (object_id INTEGER, asset_name TE
 gps_data_url = "https://gisapps.cityofchicago.org/ArcGISRest/services/ExternalApps/operational/MapServer/38/query?where=POSTING_TIME+>+SYSDATE-1+&returnGeometry=true&outSR=4326&outFields=ADDRESS,POSTING_TIME,ASSET_NAME,ASSET_TYPE,OBJECTID&f=pjson"
 
 
-# We'll use these variables to keep track of whether we observe a
-# new plow position
+# We'll use these variables to keep track of whether we observe a new
+# plow position. 30 observations should be sufficient for a reasonable
+# estimate.
 previous_posting_time = datetime.datetime(1,1,1)
 last_posting_time = datetime.datetime(1,1,1)
 update_history = defaultdict( lambda: deque([], 30))
+intervals = deque([],30)
 
 # We want adjust our sampling intervals depending upon our estimated
 # rate of updates for the plows
-intervals = deque([],30)
 sampling_frequency = 10
+
+# Even if we are unable to get any data, we need to keep track of the
+# time we spent on that attempt
 fault_sleep = 60
-fault = False
+faults = 0
 
 while True:
     query = urllib2.Request(gps_data_url)
@@ -64,12 +68,12 @@ while True:
     except Exception as e :
         print e
         sleep(fault_sleep)
-        fault = True
+        faults += 1
         continue
     if "Sorry, servers are currently down" in response:
         print "Sorry, servers are currently down"
         sleep(fault_sleep)
-        fault = True
+        faults += 1
         continue
 
     read_data = json.loads(response)
@@ -110,9 +114,10 @@ while True:
 
     # Add the sampling interval
     previous_posting_time = last_posting_time
-    if fault :
-        intervals.append(sampling_frequency + fault_sleep)
-        fault = False
+    if faults :
+        intervals.append(sampling_frequency
+                         + faults*fault_sleep)
+        faults = 0
     else :
         intervals.append(sampling_frequency)
 
@@ -125,14 +130,15 @@ while True:
             icgm = irregularCGM(intervals, update_history[object_id])
             r.append(fsolve(icgm, .01))
             print z
+
     # Assuming that updates are drawn from a poisson distribution,
     # then with .95% probability, we will observe LESS than 2 events
     # in this period. This does not mean the probability that we will
     # observe 1 update, as it is very likely that we will observe no
     # update.
     #
-    # We do not allow the interval to get too small so we don't slam
-    # the city's servers.
+    # We also do not allow the interval to get too small so we don't
+    # slam the city's servers.
     sampling_frequency = .355362/(min(max(r), .1))
     print "Sampling Interval: " + str(int(sampling_frequency)) + " seconds"
     
