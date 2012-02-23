@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS assets
  asset_type TEXT,
  PRIMARY KEY(object_id) ON CONFLICT REPLACE)""")
 
+con.commit()
+con.close()
+
 # The feed for City Of Chicago's Plow Data
 gps_data_url = "https://gisapps.cityofchicago.org/ArcGISRest/services/ExternalApps/operational/MapServer/38/query?where=POSTING_TIME+>+SYSDATE-30/24/60+&returnGeometry=true&outSR=4326&outFields=ADDRESS,POSTING_TIME,ASSET_NAME,ASSET_TYPE,OBJECTID&f=pjson"
 
@@ -89,6 +92,12 @@ while True:
         sleep(fault_sleep)
         faults += 1
         continue
+
+    # This is inside the loop as an act of perhaps irrational
+    # defensive programming, as the script stopped updating the db for
+    # no apparent reasons and without throwing an error.
+    con = sqlite3.connect("plow.db")
+    cur = con.cursor()
 
     read_data = json.loads(response)
 
@@ -129,6 +138,7 @@ while True:
             update_history[object_id].append(0)
 
     con.commit()
+    con.close()
 
     # Add the sampling interval
     previous_posting_time = last_posting_time
@@ -169,5 +179,5 @@ while True:
     print ""
     sleep(sampling_frequency)    
 
-con.close()
+
 
