@@ -5,6 +5,7 @@ import datetime
 import urllib2
 from time import sleep
 from collections import defaultdict, deque
+from math import exp
 import numpy
 from scipy.optimize import fsolve
 
@@ -35,11 +36,24 @@ def irregularCGM(intervals, Z) :
 # Set up DB
 con = sqlite3.connect("plow.db")
 cur = con.cursor()
-cur.execute("CREATE TABLE IF NOT EXISTS route_points (object_id INTEGER, posting_time DATETIME, X DOUBLE, Y DOUBLE, UNIQUE(object_id, posting_time) ON CONFLICT REPLACE)")
-cur.execute("CREATE TABLE IF NOT EXISTS assets (object_id INTEGER, asset_name TEXT, asset_type TEXT, PRIMARY KEY(object_id) ON CONFLICT REPLACE)")
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS route_points
+(object_id INTEGER,
+ posting_time DATETIME,
+ X DOUBLE,
+ Y DOUBLE,
+ UNIQUE(object_id, posting_time) ON CONFLICT REPLACE)""")
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS assets
+(object_id INTEGER,
+ asset_name TEXT,
+ asset_type TEXT,
+ PRIMARY KEY(object_id) ON CONFLICT REPLACE)""")
 
 # The feed for City Of Chicago's Plow Data
-gps_data_url = "https://gisapps.cityofchicago.org/ArcGISRest/services/ExternalApps/operational/MapServer/38/query?where=POSTING_TIME+>+SYSDATE-1+&returnGeometry=true&outSR=4326&outFields=ADDRESS,POSTING_TIME,ASSET_NAME,ASSET_TYPE,OBJECTID&f=pjson"
+gps_data_url = "https://gisapps.cityofchicago.org/ArcGISRest/services/ExternalApps/operational/MapServer/38/query?where=POSTING_TIME+>+SYSDATE-30/24/60+&returnGeometry=true&outSR=4326&outFields=ADDRESS,POSTING_TIME,ASSET_NAME,ASSET_TYPE,OBJECTID&f=pjson"
 
 
 # We'll use these variables to keep track of whether we observe a new
@@ -78,6 +92,7 @@ while True:
 
     read_data = json.loads(response)
 
+    updates = 0
     for route_point in read_data['features'] :
         
         (object_id,
@@ -109,8 +124,11 @@ while True:
             
         if posting_time > previous_posting_time :
             update_history[object_id].append(1)
+            updates += 1
         else :
             update_history[object_id].append(0)
+
+    con.commit()
 
     # Add the sampling interval
     previous_posting_time = last_posting_time
@@ -121,28 +139,34 @@ while True:
     else :
         intervals.append(sampling_frequency)
 
-    # Calculate a new sampling_frequency that we belive will capture
-    # each atomic plow update 95% of the time
+    # Estimate the update rate
     r = [] 
     for object_id in update_history :
         z = sum(update_history[object_id])
         if z > 0 :
             icgm = irregularCGM(intervals, update_history[object_id])
             r.append(fsolve(icgm, .01))
-            print z
 
-    # Assuming that updates are drawn from a poisson distribution,
-    # then with .95% probability, we will observe LESS than 2 events
+    # Assuming that updates are drawn from a Poisson distribution,
+    # then with some probability, we will observe LESS than 2 events
     # in this period. This does not mean the probability that we will
     # observe 1 update, as it is very likely that we will observe no
     # update.
     #
     # We also do not allow the interval to get too small so we don't
     # slam the city's servers.
-    sampling_frequency = .355362/(min(max(r), .1))
-    print "Sampling Interval: " + str(int(sampling_frequency)) + " seconds"
-    
-    con.commit()
+    #
+    # .95 : .355362
+    # .90 : .531812
+    # .80 : .824388
+    #
+    # http://www.wolframalpha.com/input/?i=exp(-bx)%2Bbxexp(-bx)%3D.8
+
+    sampling_frequency = max(.824388/max(r), 10)
+    print "Estimated Average Update Interval: " + str(int(1/max(r))) + " seconds"
+    print "Sampling Interval:                 " + str(int(sampling_frequency)) + " seconds"
+    print "Updates:                           " + str(updates)
+    print ""
     sleep(sampling_frequency)    
 
 con.close()

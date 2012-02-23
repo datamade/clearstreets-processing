@@ -1,25 +1,10 @@
 import sqlite3
-from osgeo import osr
 from osgeo import ogr
 import time, datetime
 import os
 import glob
 
 path = "./"
-
-####################################################
-## Define our Coordinate Reprojections
-
-# This the projection of the original data
-# http://spatialreference.org/ref/esri/102671/
-utm_srs = osr.SpatialReference()
-utm_srs.SetUTM(11)
-utm_srs.ImportFromEPSG(102671)
-
-# Same area but in in lat, long
-ll_srs = utm_srs.CloneGeogCS()
-
-xform = osr.CoordinateTransformation(utm_srs, ll_srs)
 
 ####################################################
 ## Set up the driver to write GPX traces
@@ -70,7 +55,7 @@ while True:
             feature.SetField("track_seg_id", 1 )
             feature.SetField("track_fid", 1)
 
-            (long, lat, z) = xform.TransformPoint(point[2], point[3])
+            (long, lat) = (point[2], point[3])
             pt = ogr.Geometry(ogr.wkbPoint)
             pt.SetPoint_2D(0, long, lat)
             feature.SetGeometry(pt)
