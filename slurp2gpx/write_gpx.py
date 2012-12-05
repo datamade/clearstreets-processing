@@ -4,6 +4,13 @@ import time, datetime
 import os
 import glob
 
+def testWindow(l, test_time) :
+    times = []
+    for point in l :
+        times.append(datetime.datetime.strptime(point[1], "%Y-%m-%d %H:%M:%S"))
+    return all([time > test_time for time in times])
+        
+
 path = "./"
 
 ####################################################
@@ -11,26 +18,35 @@ path = "./"
 driverName = "GPX"
 drv = ogr.GetDriverByName(driverName)
 
-####################################################
-## Setup the SQL db
-con = sqlite3.connect("plow.db")
-cur = con.cursor()
-
-## Create trace for each asset
-plows = cur.execute("select asset_name, object_id from assets").fetchall()
+count = 0
 
 while True:
+
+    con = sqlite3.connect("plow.db")
+    cur = con.cursor()
+    ## Create trace for each asset
+    plows = cur.execute("select asset_name, object_id from assets").fetchall()
+    
     for plow in plows:
         previous_period = datetime.datetime.now() - datetime.timedelta(hours=1)
         plow_name = plow[0]
         object_id = plow[1]
 
+        # Return the last N points, in order 
         plow_track = cur.execute("""
-        select * from route_points where object_id == ? and posting_time > ? order by posting_time""",
-                                 (object_id, previous_period)).fetchall()
+        select * from (select * from route_points where object_id == ? order by posting_time desc limit ?) order by posting_time asc""",
+                                 (object_id, 40)).fetchall()
 
-        if len(plow_track) < 2:
+
+
+        if len(plow_track) < 20:
             continue
+
+
+        if testWindow(plow_track, previous_period) is False :
+            continue
+
+
 
         ds = drv.CreateDataSource("../gpx/" + plow_name + ".gpx")
         if ds is None:
@@ -67,8 +83,12 @@ while True:
 
         layer.SyncToDisk()
         ds = None
+
+    con.close()
+    count += 1
+    print count
     time.sleep(10)        
 
 
-con.close()
+
 
