@@ -4,6 +4,7 @@
 CREATE TABLE assets (object_id INTEGER, asset_name VARCHAR, asset_type VARCHAR);
 CREATE TABLE route_points (object_id INTEGER, posting_time TIMESTAMP, X FLOAT, Y FLOAT);
 
+-- sqlite data to csv. Csv to postgis
 COPY assets FROM '/Users/samarthbhaskar/Desktop/Clear_streets_v2/raw_gps/assets1.csv' DELIMITERS ',' CSV;
 COPY assets FROM '/Users/samarthbhaskar/Desktop/Clear_streets_v2/raw_gps/assets2.csv' DELIMITERS '|' CSV;
 
@@ -15,6 +16,7 @@ COPY route_points FROM '/Users/samarthbhaskar/Desktop/Clear_streets_v2/raw_gps/r
 
 alter table route_points add column geo GEOGRAPHY;
 
+-- create geometry data-type columns from sqlite text data
 UPDATE route_points SET geo = st_geogfromtext('POINT(' || X || ' ' || Y || ')') where x between -180 and 180 and y between -180 and 180;
 CREATE INDEX route_points_geog_gist on route_points using gist(geo);
 VACUUM ANALYZE route_points ;
@@ -22,9 +24,15 @@ ALTER TABLE route_points add id serial primary key;
 SELECT addgeometrycolumn('public', 'route_points', 'geometry', 4326, 'Point', 2);
 UPDATE route_points SET geometry = geo::geometry;
 
+-- create lines using geo points
 -- alter table route_points drop column line;
 ALTER TABLE route_points add column line geometry;
 UPDATE route_points SET line = (select st_MakeLine(geometry order by posting_time) from route_points where geometry is not null);
+
+-- create geoJson to potentially use with Python DjangoGeoJsonTiles library
+-- alter table route_points drop column geojson;
+alter table route_points add column geojson text;
+update route_points set geojson = st_asgeojson(geometry);
 
 --- routing ---
 --- installed pgrouting and followed this tutorial (http://underdark.wordpress.com/2011/02/07/a-beginners-guide-to-pgrouting/) ---
