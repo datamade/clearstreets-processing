@@ -27,7 +27,41 @@ ALTER TABLE route_points add column line geometry;
 UPDATE route_points SET line = (select st_MakeLine(geometry order by posting_time) from route_points where geometry is not null);
 
 --- routing ---
+--- installed pgrouting and followed this tutorial (http://underdark.wordpress.com/2011/02/07/a-beginners-guide-to-pgrouting/) ---
+--- however this needs debugging ---
 
 CREATE OR REPLACE VIEW road_ext AS 
    SELECT *, startpoint(geo), endpoint(geo)
    FROM route_points;
+   
+CREATE TABLE node AS 
+   SELECT row_number() OVER (ORDER BY foo.p)::integer AS id, 
+          foo.p AS the_geom
+   FROM (         
+      SELECT DISTINCT road_ext.startpoint AS p FROM road_ext
+      UNION 
+      SELECT DISTINCT road_ext.endpoint AS p FROM road_ext
+   ) foo
+   GROUP BY foo.p;
+
+CREATE TABLE network AS
+   SELECT a.*, b.id as start_id, c.id as end_id
+   FROM road_ext AS a
+      JOIN node AS b ON a.startpoint = b.the_geom
+      JOIN node AS c ON a.endpoint = c.the_geom;
+      
+SELECT * FROM shortest_path('
+   SELECT gid AS id, 
+          start_id::int4 AS source, 
+          end_id::int4 AS target, 
+          shape_leng::float8 AS cost
+   FROM network',
+1,
+5110,
+false,
+false);
+
+--- this can then be visualized in QGis using the RT Sql Layer method --
+
+
+
