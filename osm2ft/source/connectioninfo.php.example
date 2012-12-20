@@ -1,0 +1,12 @@
+<?php
+
+class ConnectionInfo {
+
+  //Google account that owns the Fusion Table
+  public static $google_username = "xxxxxxx";
+  public static $google_password = "xxxxxxx";
+
+  public static $fusionTableId = 2708605;
+  
+}
+?>

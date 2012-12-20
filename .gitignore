@@ -2,3 +2,5 @@ chicago-r.osm
 *.pdf
 *.gpx
 *.osm
+*.db
+main-snow-routes.json
