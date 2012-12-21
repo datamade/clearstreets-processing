@@ -1,16 +1,16 @@
 # ClearStreets - Processing
 
 ClearStreets is built with several different scripts. They work in the following order:
-1. Plow Tracker site is scraped and data is saved locally
-1. Point data is converted in to GPX format
-1. GPX data is 'snapped to grid' for city streets and converted to OSM (Open Street Maps)
-1. OSM data is converted in to KML and uploaded to Google Fusion Tables
-1. Fusion Table data is read by a front end site and [shown on a map](http://clearstreets.org)
+* Plow Tracker site is scraped and data is saved locally
+* Point data is converted in to GPX format
+* GPX data is 'snapped to grid' for city streets and converted to OSM (Open Street Maps)
+* OSM data is converted in to KML and uploaded to Google Fusion Tables
+* Fusion Table data is read by a front end site and [shown on a map](http://clearstreets.org)
   
 ## Dependencies
 
-* [Python]
-* [PHP]
+* Python
+* PHP
 * [scipy](http://www.scipy.org/)
 * [gdal](http://trac.osgeo.org/gdal/wiki/GdalOgrInPython) for ogr
 * [mono](http://www.mono-project.com/Main_Page) (for linux)
