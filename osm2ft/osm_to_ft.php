@@ -88,6 +88,7 @@
 						insert_to_ft($plowID, $datestamp, $geo_to_insert, $ftclient, $fusionTableId);
 						$insertCount++;
 						echo "inserted $insertCount so far\n";
+            sleep(2);
 					}
 					$geo_to_insert = array();
 					$current_time = $secondary_attr['v'];

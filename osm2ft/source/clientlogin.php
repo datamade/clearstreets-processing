@@ -3,7 +3,6 @@
 class ClientLogin {
   public static function getAuthToken($username, $password) {
     $clientlogin_curl=curl_init();
-	curl_setopt($clientlogin_curl, CURLOPT_CAINFO, "C:/projects/plow/clearstreets-osm-to-ft/source/cacert.crt"); //fix for CURL for windows env
     curl_setopt($clientlogin_curl,CURLOPT_URL,'https://www.google.com/accounts/ClientLogin');
     curl_setopt($clientlogin_curl, CURLOPT_POST, true); 
     curl_setopt ($clientlogin_curl, CURLOPT_POSTFIELDS,
