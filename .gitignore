@@ -4,3 +4,6 @@ chicago-r.osm
 *.osm
 *.db
 main-snow-routes.json
+.DS_Store
+*.csv
+*.tar.gz

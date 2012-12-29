@@ -11,7 +11,7 @@
   echo "Plow Tracker CSV import by Derek Eder\n\n";
   
   //Fetch data from Forest's OSM files
-  chdir ("../gpx2osm/osm/");
+  chdir ("../osm/");
   $current_dir = getCwd();
   echo "Current directory is now $current_dir";
   
@@ -22,7 +22,7 @@
   $current_time;
   $insertCount = 0;
   echo "\n----Inserting in to CSV----\n";
-  $fp = fopen('plow_paths1.csv', 'w+');
+  $fp = fopen('clearstreets.csv', 'w+');
   
   foreach($array as $filename) 
   {
