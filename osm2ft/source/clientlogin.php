@@ -14,7 +14,6 @@ class ClientLogin {
     curl_close($clientlogin_curl);
     $token_array = explode("=", $token);
     $token = str_replace("\n", "", $token_array[3]);
-	echo "token: " . $token;
     return $token;
   }
 }
@@ -30,14 +29,14 @@ class FTClientLogin {
     
     $fusiontables_curl=curl_init();
     if(preg_match("/^select|^show tables|^describe/i", $query)) { 
-   	  $query =  "sql=".urlencode($query);
-      curl_setopt($fusiontables_curl,CURLOPT_URL,"http://www.fusiontables.googleusercontent.com/fusiontables/api/query?".$query);
+   	  $query =  "sql=".urlencode($query)."&key=".ConnectionInfo::$googleApiKey;
+      curl_setopt($fusiontables_curl,CURLOPT_URL,"https://www.googleapis.com/fusiontables/v1/query?".$query);
       curl_setopt($fusiontables_curl,CURLOPT_HTTPHEADER, array("Authorization: GoogleLogin auth=".$this->token));
     
     } else {
-   	  $query = "sql=".urlencode($query);
+   	  $query = "sql=".urlencode($query)."&key=".ConnectionInfo::$googleApiKey;
       curl_setopt($fusiontables_curl,CURLOPT_POST, true);
-      curl_setopt($fusiontables_curl,CURLOPT_URL,"http://www.fusiontables.googleusercontent.com/fusiontables/api/query");
+      curl_setopt($fusiontables_curl,CURLOPT_URL,"https://www.googleapis.com/fusiontables/v1/query");
       curl_setopt($fusiontables_curl,CURLOPT_HTTPHEADER, array( 
         "Content-length: " . strlen($query), 
         "Content-type: application/x-www-form-urlencoded", 
@@ -50,7 +49,22 @@ class FTClientLogin {
     curl_setopt($fusiontables_curl,CURLOPT_RETURNTRANSFER,1);
     $result = curl_exec($fusiontables_curl);
     curl_close($fusiontables_curl);
-    return $result;
+
+    $json_result = json_decode($result);
+
+    // returning as an array
+    return $json_result->{'rows'};
+
+    // This will return as a csv - not a good data format!
+    // $csv_result = "";
+    // foreach ($json_result->{'rows'} as $row) {
+    //   foreach ($row as $field) {
+    //     $csv_result .= $field.",";
+    //   }
+    //   $csv_result .= "\n";
+    // }
+    // echo $csv_result;
+    // return $csv_result;
   }
 }
 
