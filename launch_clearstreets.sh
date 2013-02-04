@@ -1,6 +1,7 @@
 cd ./slurp2gpx/
 echo 'launching slurp_plow_data.py'
 nohup python slurp_plow_data.py > ~/logs/slurp_plow_data.txt &
+sleep 30
 echo 'launching write_gpx.py'
 nohup python write_gpx.py > ~/logs/write_gpx.txt &
 cd ../gpx2osm
