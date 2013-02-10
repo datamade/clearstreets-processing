@@ -37,77 +37,73 @@
 	$ftclient = new FTClientLogin($token);
 	
 	//for clearing out table
-	//$ftclient->query("DELETE FROM $fusionTableId");
+	$ftclient->query("DELETE FROM $fusionTableId");
 	
 	//check how many are in Fusion Tables already
-	$ftResponse = $ftclient->query("SELECT Count() FROM $fusionTableId");
-	echo "$ftResponse \n";
-	
-	//this part is very custom to this particular dataset. If you are using this, here's where the bulk of your work would be: data mapping!
-	$ftResponse = $ftclient->query(SQLBuilder::select($fusionTableId, "'Datestamp'", "", "'Datestamp' DESC", "1"));
-	$ftResponse = trim(str_replace("Datestamp", "", $ftResponse)); //totally a hack. there's a better way to do this
-	
-	//big assumption: socrata will return the data ordered by date. this may not always be the case
-	if ($ftResponse != "")
-		$latestInsert = new DateTime(str_replace("Datestamp", "", $ftResponse));   
-	else
-		$latestInsert = new DateTime("1/1/2001"); //if there are no rows, set it to an early date so we import everything
-	  
-	echo "\nLatest FT insert: " . $latestInsert->format('m/d/Y H:i:s') . "\n";
+	//$ftResponse = $ftclient->query("SELECT Count() FROM $fusionTableId");
+	//echo "$ftResponse \n";
 
   $current_time;
   $insertCount = 0;
   echo "\n----Inserting in to Fusion Tables----\n";
   foreach($array as $filename) 
-  {
-  	$plowID = "";
-  	$datestamp = "";
-  	$geo_to_insert = array();
-  	
-  	if ($filename != "." && $filename != ".." && $filename != ".DS_Store") {
-  	  echo "$filename\n";
-	  @$xml = simplexml_load_file("$filename");
-	  
-	  if ($xml != null) 
-	  {
-		  foreach ($xml->xpath('/osm/node') as $node) 
-		  {
-			$primary_attr = $node->attributes();   // returns an array
-			
-			foreach ($node->children() as $tag) 
-			{
-				$secondary_attr = $tag->attributes();
-				if ($secondary_attr['k'] == 'time') 
-				{
-					//if we come across a time, we know to insert the current set of collected values
-					$datestamp_as_date = new DateTime($datestamp);
-					if (!empty($geo_to_insert) && $datestamp_as_date > $latestInsert)
-					{
-						//hack to add in the connecting point to the next line segment
-						$geo_to_insert[] = $primary_attr['lon'] . ',' . $primary_attr['lat'];
-						insert_to_ft($plowID, $datestamp, $geo_to_insert, $ftclient, $fusionTableId);
-						$insertCount++;
-						echo "inserted $insertCount so far\n";
-            sleep(2);
-					}
-					$geo_to_insert = array();
-					$current_time = $secondary_attr['v'];
-				}
-			}
-			
-			$plowID = strstr($filename, '_', true);
-			$datestamp = $current_time;
-			$geo_to_insert[] = $primary_attr['lon'] . ',' . $primary_attr['lat'];
-		
-		  }
-	  }
-	}
+  {	
+    if (strpos($filename,'.osm') !== false) {
+  	  echo "Processing $filename ...\n";
+  	  @$xml = simplexml_load_file("$filename");
+      $plowID = strstr($filename, '_', true);
+      $latestInsert = get_latest_insert($plowID, $ftclient, $fusionTableId);
+      $datestamp = "";
+      $geo_to_insert = array();
+  	  
+  	  if ($xml != null) {
+  		  foreach ($xml->xpath('/osm/node') as $node) {
+    			$primary_attr = $node->attributes();   // returns an array
+    			
+    			foreach ($node->children() as $tag) {
+    				$secondary_attr = $tag->attributes();
+    				if ($secondary_attr['k'] == 'time') {
+    					//if we come across a time, we know to insert the current set of collected values
+    					$datestamp_as_date = new DateTime($datestamp);
+
+    					if (!empty($geo_to_insert) && $datestamp_as_date > $latestInsert) {
+    						//hack to add in the connecting point to the next line segment
+    						$geo_to_insert[] = $primary_attr['lon'] . ',' . $primary_attr['lat'];
+    						insert_to_ft($plowID, $datestamp, $geo_to_insert, $ftclient, $fusionTableId);
+    						$insertCount++;
+    						echo "inserted $insertCount so far\n";
+                sleep(1);
+    					}
+    					$geo_to_insert = array();
+    					$current_time = $secondary_attr['v'];
+    				}
+    			}
+    			
+    			$datestamp = $current_time;
+    			$geo_to_insert[] = $primary_attr['lon'] . ',' . $primary_attr['lat'];
+  		
+  		  }
+  	  }
+  	}
   }
 
   echo "\ninserted $insertCount rows\n";
   echo "This script ran in " . (time()-$bgtime) . " seconds\n";
   echo "\nWaiting 30 seconds.\n";
   sleep(30);
+  }
+
+  function get_latest_insert($plowID, $ftclient, $fusionTableId) {
+    //this part is very custom to this particular dataset. If you are using this, here's where the bulk of your work would be: data mapping!
+    $ftResponse = $ftclient->query(SQLBuilder::select($fusionTableId, "'Datestamp'", "'Plow ID' = '$plowID'", "'Datestamp' DESC", "1"));
+    //echo "Response: " . var_dump($ftResponse[1]) . "\n";
+    if (count($ftResponse) > 1)
+      $latestInsert = new DateTime($ftResponse[1][0]);   
+    else
+      $latestInsert = new DateTime("1/1/2001"); //if there are no rows, set it to an early date so we import everything
+      
+    echo "\nLatest FT insert for $plowID: " . $latestInsert->format('m/d/Y H:i:s') . "\n";
+    return $latestInsert;
   }
   
   function insert_to_ft($plowID, $datestamp, $geo_to_insert, $ftclient, $fusionTableId) {
