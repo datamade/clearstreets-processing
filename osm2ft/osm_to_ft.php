@@ -26,71 +26,72 @@
   echo "Current directory is now $current_dir";
   
   while(true) {
-  //keep track of script execution time
-  $bgtime=time();
-  $array = scandir(".", 1);
-  print_r($array);
-  
-  //Fetch info from Fusion Tables and do inserts & data manipulation
-    //get token
-	$token = ClientLogin::getAuthToken(ConnectionInfo::$google_username, ConnectionInfo::$google_password);
-	$ftclient = new FTClientLogin($token);
-	
-	//for clearing out table
-	$ftclient->query("DELETE FROM $fusionTableId");
-	
-	//check how many are in Fusion Tables already
-	//$ftResponse = $ftclient->query("SELECT Count() FROM $fusionTableId");
-	//echo "$ftResponse \n";
+    //keep track of script execution time
+    $bgtime=time();
+    $array = scandir(".", 1);
+    print_r($array);
+    
+    //Fetch info from Fusion Tables and do inserts & data manipulation
+      //get token
+  	$token = ClientLogin::getAuthToken(ConnectionInfo::$google_username, ConnectionInfo::$google_password);
+  	$ftclient = new FTClientLogin($token);
+  	
+  	//for clearing out table
+  	//$ftclient->query("DELETE FROM $fusionTableId");
+  	
+  	//check how many are in Fusion Tables already
+  	//$ftResponse = $ftclient->query("SELECT Count() FROM $fusionTableId");
+  	//echo "$ftResponse \n";
 
-  $current_time;
-  $insertCount = 0;
-  echo "\n----Inserting in to Fusion Tables----\n";
-  foreach($array as $filename) 
-  {	
-    if (strpos($filename,'.osm') !== false) {
-  	  echo "Processing $filename ...\n";
-  	  @$xml = simplexml_load_file("$filename");
-      $plowID = strstr($filename, '_', true);
-      $latestInsert = get_latest_insert($plowID, $ftclient, $fusionTableId);
-      $datestamp = "";
-      $geo_to_insert = array();
-  	  
-  	  if ($xml != null) {
-  		  foreach ($xml->xpath('/osm/node') as $node) {
-    			$primary_attr = $node->attributes();   // returns an array
-    			
-    			foreach ($node->children() as $tag) {
-    				$secondary_attr = $tag->attributes();
-    				if ($secondary_attr['k'] == 'time') {
-    					//if we come across a time, we know to insert the current set of collected values
-    					$datestamp_as_date = new DateTime($datestamp);
+    $current_time;
+    $insertCount = 0;
+    echo "\n----Inserting in to Fusion Tables----\n";
+    foreach($array as $filename) {	
+      if (strpos($filename,'.osm') !== false) {
+    	  echo "Processing $filename ...\n";
+    	  @$xml = simplexml_load_file("$filename");
+        $plowID = strstr($filename, '_', true);
+        $latestInsert = get_latest_insert($plowID, $ftclient, $fusionTableId);
+        $datestamp = "";
+        $geo_to_insert = array();
+    	  
+    	  if ($xml != null) {
+    		  foreach ($xml->xpath('/osm/node') as $node) {
+      			$primary_attr = $node->attributes();   // returns an array
+      			
+      			foreach ($node->children() as $tag) {
+      				$secondary_attr = $tag->attributes();
+      				if ($secondary_attr['k'] == 'time') {
+      					//if we come across a time, we know to insert the current set of collected values
+      					$datestamp_as_date = new DateTime($datestamp);
 
-    					if (!empty($geo_to_insert) && $datestamp_as_date > $latestInsert) {
-    						//hack to add in the connecting point to the next line segment
-    						$geo_to_insert[] = $primary_attr['lon'] . ',' . $primary_attr['lat'];
-    						insert_to_ft($plowID, $datestamp, $geo_to_insert, $ftclient, $fusionTableId);
-    						$insertCount++;
-    						echo "inserted $insertCount so far\n";
-                sleep(1);
-    					}
-    					$geo_to_insert = array();
-    					$current_time = $secondary_attr['v'];
-    				}
-    			}
-    			
-    			$datestamp = $current_time;
-    			$geo_to_insert[] = $primary_attr['lon'] . ',' . $primary_attr['lat'];
-  		
-  		  }
-  	  }
-  	}
-  }
+      					if (!empty($geo_to_insert) && $datestamp_as_date > $latestInsert) {
+      						//add in the connecting point to the next line segment
+      						$geo_to_insert[] = $primary_attr['lon'] . ',' . $primary_attr['lat'];
+      						insert_to_ft($plowID, $datestamp, $geo_to_insert, $ftclient, $fusionTableId);
+      						$insertCount++;
+      						echo "inserted $insertCount so far\n";
 
-  echo "\ninserted $insertCount rows\n";
-  echo "This script ran in " . (time()-$bgtime) . " seconds\n";
-  echo "\nWaiting 30 seconds.\n";
-  sleep(30);
+                  //FT has an insert throughput limit of 0.5 qps defined here: 
+                  //https://developers.google.com/fusiontables/docs/v1/using#Geo
+                  sleep(1);
+      					}
+      					$geo_to_insert = array();
+      					$current_time = $secondary_attr['v'];
+      				}
+      			}
+      			
+      			$datestamp = $current_time;
+      			$geo_to_insert[] = $primary_attr['lon'] . ',' . $primary_attr['lat'];
+    		
+    		  }
+    	  }
+    	}
+    }
+
+    echo "Finished iteration in " . (time()-$bgtime) . " seconds\n";
+    echo "\Sleeping 30 seconds ...\n";
+    sleep(30);
   }
 
   function get_latest_insert($plowID, $ftclient, $fusionTableId) {
