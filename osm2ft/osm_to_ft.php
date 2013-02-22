@@ -90,8 +90,8 @@
     }
 
     echo "Finished iteration in " . (time()-$bgtime) . " seconds\n";
-    echo "\Sleeping 30 seconds ...\n";
-    sleep(30);
+    echo "\Sleeping 5 min ...\n";
+    sleep(300);
   }
 
   function get_latest_insert($plowID, $ftclient, $fusionTableId) {
