@@ -51,6 +51,15 @@ class FTClientLogin {
     curl_close($fusiontables_curl);
 
     $json_result = json_decode($result);
+
+    // check for errors
+    if (array_key_exists('error', $json_result)) {
+      echo "Error in query\n";
+      echo $query . "\n";
+      echo var_dump($json_result);
+    }
+
+    // check for row results
     $rows = Array();
     if (array_key_exists('rows', $json_result))
       $rows = $json_result->{'rows'};
