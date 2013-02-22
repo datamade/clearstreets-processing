@@ -6,7 +6,7 @@ echo 'launching write_gpx.py'
 python write_gpx_all.py > ~/logs/write_gpx_all.txt
 cd ../gpx2osm
 echo 'launching gpx2osm.sh'
-bash gpx2osm.sh > ~/logs/gpx2osm.txt
+mono MatchGPX2OSM.exe --osm=chicago-r.osm --gpx=../gpx --output=../osm > ~/logs/gpx2osm.txt
 cd ../osm2ft/
-echo 'launching osm_to_ft.php'
+echo 'launching osm_to_csv.php'
 php osm_to_csv.php > ~/logs/osm_to_csv.txt

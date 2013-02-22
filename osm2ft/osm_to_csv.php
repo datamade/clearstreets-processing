@@ -22,7 +22,7 @@
   $current_time;
   $insertCount = 0;
   echo "\n----Inserting in to CSV----\n";
-  $fp = fopen('clearstreets.csv', 'w+');
+  $fp = fopen('../clearstreets.csv', 'w+');
   
   foreach($array as $filename) 
   {
