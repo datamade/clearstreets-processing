@@ -2,7 +2,7 @@ import json
 import sqlite3
 import time
 import datetime
-import urllib2
+import requests
 from time import sleep
 from collections import defaultdict, deque
 from math import exp
@@ -56,7 +56,7 @@ con.commit()
 con.close()
 
 # The feed for City Of Chicago's Plow Data
-gps_data_url = "https://gisapps.cityofchicago.org/ArcGISRest/services/ExternalApps/operational/MapServer/38/query?where=POSTING_TIME+>+SYSDATE-30/24/60+&returnGeometry=true&outSR=4326&outFields=ADDRESS,POSTING_TIME,ASSET_NAME,ASSET_TYPE,OBJECTID&f=pjson"
+gps_data_url = "https://gisapps.cityofchicago.org/ArcGISRest/services/ExternalApps/operational/MapServer/38/query?where=POSTING_TIME+%3E+SYSDATE-30/24/60+&returnGeometry=true&outSR=4326&outFields=ADDRESS,POSTING_TIME,ASSET_NAME,ASSET_TYPE,OBJECTID&f=pjson"
 
 
 # We'll use these variables to keep track of whether we observe a new
@@ -77,11 +77,9 @@ fault_sleep = 60
 faults = 0
 
 while True:
-    query = urllib2.Request(gps_data_url)
-
     # Try to handle anything besides a well-formed json response
     try:
-        response = urllib2.urlopen(query).read()
+        response = requests.get(gps_data_url)
     except Exception as e :
         print e
         sleep(fault_sleep)
@@ -92,6 +90,11 @@ while True:
         sleep(fault_sleep)
         faults += 1
         continue
+    if len(response.json()['features']) == 0:
+        print "No traces present"
+        sleep(fault_sleep)
+        faults += 1
+        continue
 
     # This is inside the loop as an act of perhaps irrational
     # defensive programming, as the script stopped updating the db for
@@ -99,7 +102,7 @@ while True:
     con = sqlite3.connect("plow.db")
     cur = con.cursor()
 
-    read_data = json.loads(response)
+    read_data = response.json()
 
     updates = 0
     for route_point in read_data['features'] :
