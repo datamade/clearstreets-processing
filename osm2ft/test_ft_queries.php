@@ -11,6 +11,9 @@ include('source/connectioninfo.php');
 $token = ClientLogin::getAuthToken(ConnectionInfo::$google_username, ConnectionInfo::$google_password);
 $ftclient = new FTClientLogin($token);
 
+echo 'login: ' . ConnectionInfo::$google_username . ' ' . ConnectionInfo::$google_password;
+echo ' token: ' . $token;
+
 //show all tables
 //echo $ftclient->query(SQLBuilder::showTables());
 //echo "<br />";
