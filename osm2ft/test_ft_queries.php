@@ -18,7 +18,7 @@ $ftclient = new FTClientLogin($token);
 //echo $ftclient->query(SQLBuilder::describeTable(2699417));
 //echo "<br />";
 //select * from table
-echo $ftclient->query(SQLBuilder::select(2699417));
+echo $ftclient->query(SQLBuilder::select(ConnectionInfo::$fusionTableId));
 //echo "<br />";
 //select * from table where test=1
 //echo $ftclient->query(SQLBuilder::select(358077, null, "'test'=1"));
@@ -44,6 +44,6 @@ echo $ftclient->query(SQLBuilder::select(2699417));
 //echo $ftclient->query("UPDATE 564620 SET 'ANY PEOPLE USING PROPERTY? (HOMELESS, CHILDEN, GANGS)' = 2 WHERE ROWID = ''");
 //echo "<br />";
 //insert into table (test, test2, 'another test') values (12, 3.3333, 'bob')
-echo $ftclient->query(SQLBuilder::insert(2699417, array('Plow ID'=>1, 'Datestamp' => "1/19/2012", 'geography' => 'xyz')));
+echo $ftclient->query(SQLBuilder::insert(ConnectionInfo::$fusionTableId, array('Plow ID'=>1, 'Datestamp' => "1/19/2012", 'geometry' => 'xyz')));
 
 ?>
