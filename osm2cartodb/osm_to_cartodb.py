@@ -1,136 +1,74 @@
+from os import listdir
+from os.path import isfile, join
+import datetime
+
 from cartodb_settings import CARTODB_SETTINGS
 from cartodb import CartoDBAPIKey, CartoDBException
+import xml.etree.ElementTree as ET
 
+def get_latest_insert(plow_id, carto):
+  latest = datetime.datetime.now()
+  try:
+    query = carto.sql("select datestamp from %s where id = '%s'" % (CARTODB_SETTINGS['table'], plow_id))
+
+    if 'datestamp' in query.keys():
+      latest = query['datestamp']
+    return latest
+
+  except CartoDBException as e:
+    print ("some error ocurred", e)
+
+def insert_into_cartodb(plow_id, datestamp, the_geom, carto):
+
+  print plow_id, ' - ', datestamp
+
+  the_geom_wkt = ''
+  for point in the_geom:
+    the_geom_wkt += point[1] + " " + point[0] + ","
+
+  print the_geom_wkt
+
+  try:
+    carto.sql("""
+          INSERT INTO %s (id, datestamp, the_geom) 
+          VALUES ('%s', '%s', ST_GeomFromText('LINESTRING(%s)'))
+          """ % (CARTODB_SETTINGS['table'], plow_id, datestamp, the_geom_wkt))
+  
+  except CartoDBException as e:
+    print ("some error ocurred", e)
+
+# setup
 user =  CARTODB_SETTINGS['user']
 API_KEY = CARTODB_SETTINGS['api_key']
 cartodb_domain = CARTODB_SETTINGS['domain']
 carto = CartoDBAPIKey(API_KEY, cartodb_domain)
 
-try:
-    carto.sql("""
-      INSERT INTO %s (id, datestamp, the_geom) 
-      VALUES ('S11989', '12/1/2013 5:54:38 PM', ST_GeomFromKML('<LineString><tessellate>1</tessellate>
-        <coordinates>
-      -87.5916593450114,41.7076768180021
-      -87.5931003,41.7076539
-      -87.5941867,41.7076366
-      -87.5942457,41.707143
-      -87.5942819,41.7067195
-      -87.5942685,41.7059596
-      -87.594129,41.7011605
-      -87.594121,41.7009593
-      -87.5941344,41.7007961
-      -87.5941679,41.7006378
-      -87.5942323,41.7004516
-      -87.5943221,41.7002844
-      -87.5970915,41.6951414
-      -87.5972323,41.6949121
-      -87.5973128,41.694809
-      -87.5975341,41.6945716
-      -87.5986217,41.693428
-      -87.5987102,41.6933479
-      -87.5987786,41.6933018
-      -87.5988631,41.6932518
-      -87.5990026,41.6931947
-      -87.5991112,41.6931626
-      -87.5992386,41.6931436
-      -87.5993593,41.6931346
-      -87.5994961,41.6931386
-      -87.6001854,41.6932127
-      -87.6002941,41.6932187
-      -87.6003853,41.6932097
-      -87.600459,41.6931837
-      -87.6005046,41.6931496
-      -87.6005301,41.6931015
-      -87.6005636,41.6928632
-      -87.6005663,41.6926389
-      -87.6005623,41.6925938
-      -87.6005368,41.6925447
-      -87.6006186,41.6924917
-      -87.6006655,41.6924406
-      -87.600691,41.6923765
-      -87.6007004,41.6922844
-      -87.600695,41.6918237
-      -87.6007071,41.6916374
-      -87.6007433,41.69131
-      -87.6007742,41.6909695
-      -87.6007929,41.6908483
-      -87.6008238,41.6907201
-      -87.6008761,41.6905789
-      -87.6009646,41.6904026
-      -87.6014903,41.6894282
-      -87.6020187,41.6884618
-      -87.6020804,41.6883646
-      -87.6021448,41.6882855
-      -87.6022279,41.6881984
-      -87.6030031,41.6875794
-      -87.603164,41.6875203
-      -87.6033142,41.6874763
-      -87.6035127,41.6874553
-      -87.604772,41.6874382
-      -87.6048994,41.6874122
-      -87.6049866,41.6873731
-      -87.6050684,41.68731
-      -87.6051328,41.6872349
-      -87.6051623,41.6871638
-      -87.6052092,41.6869956
-      -87.6052696,41.6868423
-      -87.6053447,41.6866751
-      -87.6054908,41.6864047
-      -87.605515,41.6863365
-      -87.6055284,41.6862624
-      -87.6055311,41.6861503
-      -87.6055217,41.6854874
-      -87.6066777,41.6854797
-      -87.6070505,41.6854772
-      -87.6082589,41.6854642
-      -87.6094766,41.685456
-      -87.6110645,41.685441
-      -87.6115688,41.6840027
-      -87.6118007,41.6840008
-      -87.6120502,41.6839988
-      -87.612639,41.6839941
-      -87.6126872,41.6839937
-      -87.6127798,41.6839931
-      -87.6130963,41.6826055
-      -87.6133967,41.6813475
-      -87.6138647,41.6813936
-      -87.6146922,41.6813876
-      -87.616669,41.6813806
-      -87.6166167,41.6799252
-      -87.6165885,41.6781162
-      -87.6165376,41.6762912
-      -87.6165175,41.6753886
-      -87.6177312,41.6753716
-      -87.6190937,41.6753456
-      -87.6204281,41.6753255
-      -87.6204036,41.674432
-      -87.6204013,41.6743489
-      -87.6203704,41.6735104
-      -87.6203382,41.6725928
-      -87.6203141,41.6716862
-      -87.620294,41.6707666
-      -87.6202082,41.6689474
-      -87.6201693,41.668195
-      -87.6201465,41.6677182
-      -87.6200848,41.6663687
-      -87.6200472,41.665441
-      -87.620003,41.6644742
-      -87.619956,41.6634913
-      -87.6187531,41.6633871
-      -87.6186725,41.6633824
-      -87.6185452,41.6633751
-      -87.6178693,41.6633711
-      -87.617758,41.6633711
-      -87.617699,41.6633591
-      -87.6176507,41.663337
-      -87.6176185,41.663307
-      -87.6176064,41.6632749
-      -87.6176104,41.6632328
-      -87.6178049,41.6623532
-      -87.617909952272,41.6618972291904
-</coordinates></LineString>'))""" % CARTODB_SETTINGS['table'])
+insert_count = 0
+osm_files = [ f for f in listdir('../osm') if isfile(join('../osm',f)) and '.osm' in f]
 
-    print carto.sql("select * from %s" % CARTODB_SETTINGS['table'])
-except CartoDBException as e:
-    print ("some error ocurred", e)
+for osm_file in osm_files:
+
+  plow_id = osm_file.split("_")[0]
+  datestamp = ''
+  the_geom = []
+
+  latest_insert = get_latest_insert(plow_id, carto)
+  # print latest_insert
+
+  # read OSM file
+  tree = ET.parse("../osm/%s" % osm_file)
+  for node in tree.getroot().iter('node'):
+    # print node.attrib
+    for child in node:
+      if child.attrib['k'] == 'time':
+        # print child.attrib
+        if len(the_geom) > 0 and current_segment_datestamp > latest_insert:
+          the_geom.append([node.attrib['lat'], node.attrib['lon']])
+          insert_into_cartodb(plow_id, datestamp, the_geom, carto)
+          insert_count = insert_count + 1
+          print "inserted %s so far\n" % insert_count;
+        the_geom = []
+        current_segment_datestamp = datetime.datetime.strptime(child.attrib['v'], "%m/%d/%Y %I:%M:%S %p")
+
+      datestamp = current_segment_datestamp
+      the_geom = [[node.attrib['lat'], node.attrib['lon']]]

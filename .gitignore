@@ -8,6 +8,6 @@ main-snow-routes.json
 *.csv
 *.tar.gz
 *.zip
-.pyc
+*.pyc
 connectioninfo.php
 cartodb_settings.py
