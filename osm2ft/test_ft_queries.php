@@ -21,7 +21,7 @@ echo ' token: ' . $token;
 //echo $ftclient->query(SQLBuilder::describeTable(2699417));
 //echo "<br />";
 //select * from table
-echo $ftclient->query(SQLBuilder::select(ConnectionInfo::$fusionTableId));
+// echo $ftclient->query(SQLBuilder::select(ConnectionInfo::$fusionTableId));
 //echo "<br />";
 //select * from table where test=1
 //echo $ftclient->query(SQLBuilder::select(358077, null, "'test'=1"));

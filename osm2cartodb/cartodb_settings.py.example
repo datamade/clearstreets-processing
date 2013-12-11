@@ -1,0 +1,6 @@
+CARTODB_SETTINGS = {
+  'user': '',
+  'api_key': '',
+  'domain': '',
+  'table': ''
+}
