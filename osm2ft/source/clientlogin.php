@@ -13,6 +13,8 @@ class ClientLogin {
     $token = curl_exec($clientlogin_curl);
     curl_close($clientlogin_curl);
     $token_array = explode("=", $token);
+    echo ' token_array: ';
+    print_r($token_array);
     $token = str_replace("\n", "", $token_array[3]);
     return $token;
   }
