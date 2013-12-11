@@ -18,7 +18,7 @@ def get_latest_insert(plow_id, carto):
   except CartoDBException as e:
     print ("some error ocurred", e)
 
-def insert_into_cartodb(plow_id, datestamp, the_geom, carto):
+def insert_into_cartodb(plow_id, datestamp, the_geom, carto, insert_batch):
 
   print plow_id, '-', datestamp
 
@@ -28,17 +28,25 @@ def insert_into_cartodb(plow_id, datestamp, the_geom, carto):
 
   the_geom_wkt = the_geom_wkt[:-1]
 
-  insert_sql = """
-          INSERT INTO %s (id, datestamp, the_geom) 
-          VALUES ('%s', '%s', ST_GeomFromText('LINESTRING(%s)', 4326))
-          """ % (CARTODB_SETTINGS['table'], plow_id, datestamp, the_geom_wkt)
+  if len(insert_batch) < 50:
+    insert_batch.append([plow_id, datestamp, the_geom_wkt])
 
-  print 'insert_sql', insert_sql
+  else:
+    insert_sql = "INSERT INTO %s (id, datestamp, the_geom) VALUES " % (CARTODB_SETTINGS['table'])
 
-  try:
-    carto.sql(insert_sql)
-  except CartoDBException as e:
-    print ("some error ocurred", e)
+    for item in insert_batch:
+      insert_sql += " ('%s', '%s', ST_GeomFromText('LINESTRING(%s)', 4326))," % (item[0], item[1], item[2])
+
+    insert_sql = insert_sql[:-1]  
+    # print 'insert_sql', insert_sql
+
+    try:
+      carto.sql(insert_sql)
+      insert_batch = []
+    except CartoDBException as e:
+      print ("some error ocurred", e)
+
+  return insert_batch
 
 def clear_out_table(carto):
   try:
@@ -54,6 +62,7 @@ carto = CartoDBAPIKey(API_KEY, cartodb_domain)
 
 clear_out_table(carto)
 
+insert_batch = []
 insert_count = 0
 osm_files = [ f for f in listdir('../osm') if isfile(join('../osm',f)) and '.osm' in f]
 
@@ -77,9 +86,11 @@ for osm_file in osm_files:
       if child.attrib['k'] == 'time':
         if len(the_geom) > 0 and current_segment_datestamp > latest_insert:
           the_geom.append([node.attrib['lat'], node.attrib['lon']])
-          insert_into_cartodb(plow_id, datestamp, the_geom, carto)
+          insert_batch = insert_into_cartodb(plow_id, datestamp, the_geom, carto, insert_batch)
           insert_count = insert_count + 1
-          print "inserted %s so far\n" % insert_count;
+
+          if insert_count % 50 == 0:
+            print "inserted %s so far\n" % insert_count;
         the_geom = []
         current_segment_datestamp = datetime.datetime.strptime(child.attrib['v'], "%m/%d/%Y %I:%M:%S %p")
 

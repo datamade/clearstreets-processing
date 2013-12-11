@@ -74,7 +74,7 @@
 
                   //FT has an insert throughput limit of 0.5 qps defined here: 
                   //https://developers.google.com/fusiontables/docs/v1/using#Geo
-                  sleep(1);
+                  // sleep(1);
       					}
       					$geo_to_insert = array();
       					$current_time = $secondary_attr['v'];
@@ -121,6 +121,8 @@
 	    $kml = $kml . "		
 	    	</coordinates>
 		</LineString>";
+
+    echo $kml;
 	      
 	    echo $plowID . ' - ' . $datestamp . PHP_EOL;
     	//echo $kml . PHP_EOL;
@@ -150,6 +152,6 @@
 	    */
     	);
     
-    	echo $ftclient->query(SQLBuilder::insert($fusionTableId, $insertArray));
+    	// echo $ftclient->query(SQLBuilder::insert($fusionTableId, $insertArray));
   }
 ?>
