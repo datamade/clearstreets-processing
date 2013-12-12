@@ -18,7 +18,7 @@ def get_latest_insert(plow_id, carto):
   except CartoDBException as e:
     print ("some error ocurred", e)
 
-def insert_into_cartodb(plow_id, datestamp, the_geom, carto, insert_batch):
+def add_to_insert_batch(plow_id, datestamp, the_geom, carto, insert_batch, batch_size):
 
   # print plow_id, '-', datestamp
 
@@ -28,27 +28,31 @@ def insert_into_cartodb(plow_id, datestamp, the_geom, carto, insert_batch):
 
   the_geom_wkt = the_geom_wkt[:-1]
 
-  if len(insert_batch) < 1000:
+  if len(insert_batch) < batch_size:
     insert_batch.append([plow_id, datestamp, the_geom_wkt])
 
   else:
-    insert_sql = "INSERT INTO %s (id, datestamp, the_geom) VALUES " % (CARTODB_SETTINGS['table'])
-
-    for item in insert_batch:
-      insert_sql += " ('%s', '%s', ST_GeomFromText('LINESTRING(%s)', 4326))," % (item[0], item[1], item[2])
-
-    insert_sql = insert_sql[:-1]  
-    # print 'insert_sql', insert_sql
-
-    try:
-      carto.sql(insert_sql)
-      insert_batch = []
-    except CartoDBException as e:
-      print ("some error ocurred", e)
+    commit_insert_batch(carto, insert_batch)
 
   return insert_batch
 
+def commit_insert_batch(carto, insert_batch):
+  insert_sql = "INSERT INTO %s (id, datestamp, the_geom) VALUES " % (CARTODB_SETTINGS['table'])
+
+  for item in insert_batch:
+    insert_sql += " ('%s', '%s', ST_GeomFromText('LINESTRING(%s)', 4326))," % (item[0], item[1], item[2])
+
+  insert_sql = insert_sql[:-1]  
+  # print 'insert_sql', insert_sql
+
+  try:
+    carto.sql(insert_sql)
+    insert_batch = []
+  except CartoDBException as e:
+    print ("some error ocurred", e)
+
 def clear_out_table(carto):
+  print "clearing out table"
   try:
     carto.sql("delete from %s" % CARTODB_SETTINGS['table'])
   except CartoDBException as e:
@@ -60,9 +64,12 @@ API_KEY = CARTODB_SETTINGS['api_key']
 cartodb_domain = CARTODB_SETTINGS['domain']
 carto = CartoDBAPIKey(API_KEY, cartodb_domain)
 
-clear_out_table(carto)
+# clear_out_table(carto)
+
+# while True:
 
 insert_batch = []
+batch_size = 1000
 insert_count = 0
 osm_files = [ f for f in listdir('../osm') if isfile(join('../osm',f)) and '.osm' in f]
 
@@ -88,13 +95,20 @@ for osm_file in osm_files:
       if child.attrib['k'] == 'time':
         if len(the_geom) > 0 and current_segment_datestamp > latest_insert:
           the_geom.append([node.attrib['lat'], node.attrib['lon']])
-          insert_batch = insert_into_cartodb(plow_id, datestamp, the_geom, carto, insert_batch)
+          insert_batch = add_to_insert_batch(plow_id, datestamp, the_geom, carto, insert_batch, batch_size)
           insert_count = insert_count + 1
 
-          if insert_count % 1000 == 0:
+          if insert_count % batch_size == 0:
+            commit_insert_batch(carto, insert_batch)
+            insert_batch = []
             print "inserted %s so far" % insert_count;
         the_geom = []
         current_segment_datestamp = datetime.datetime.strptime(child.attrib['v'], "%m/%d/%Y %I:%M:%S %p")
 
       datestamp = current_segment_datestamp
       the_geom.append([node.attrib['lat'], node.attrib['lon']])
+
+# do one final insert for the remainder
+if len(insert_batch) > 0:
+  commit_insert_batch(carto, insert_batch)
+  print "inserted the remaining %s" % len(insert_batch);
