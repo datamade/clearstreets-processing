@@ -83,36 +83,39 @@ while True:
 
   for osm_file in osm_files:
 
-    plow_id = osm_file.split("_")[0]
-    datestamp = ''
-    the_geom = []
+    try:
+      plow_id = osm_file.split("_")[0]
+      datestamp = ''
+      the_geom = []
 
-    latest_insert = get_latest_insert(plow_id, carto)
-    current_segment_datestamp = datetime.datetime(1990, 1, 2)
+      latest_insert = get_latest_insert(plow_id, carto)
+      current_segment_datestamp = datetime.datetime(1990, 1, 2)
 
-    # read OSM file
-    tree = ET.parse("../osm/%s" % osm_file)
-    for node in tree.getroot().findall('node'):
-      # print current_segment_datestamp
-      # print node.attrib
-      for child in node:
-        # print child.attrib
-        if child.attrib['k'] == 'time':
-          if len(the_geom) > 0 and current_segment_datestamp > latest_insert:
-            # print current_segment_datestamp, '>', latest_insert
-            the_geom.append([node.attrib['lat'], node.attrib['lon']])
-            insert_batch = add_to_insert_batch(plow_id, datestamp, the_geom, carto, insert_batch, batch_size)
-            insert_count = insert_count + 1
+      # read OSM file
+      tree = ET.parse("../osm/%s" % osm_file)
+      for node in tree.getroot().findall('node'):
+        # print current_segment_datestamp
+        # print node.attrib
+        for child in node:
+          # print child.attrib
+          if child.attrib['k'] == 'time':
+            if len(the_geom) > 0 and current_segment_datestamp > latest_insert:
+              # print current_segment_datestamp, '>', latest_insert
+              the_geom.append([node.attrib['lat'], node.attrib['lon']])
+              insert_batch = add_to_insert_batch(plow_id, datestamp, the_geom, carto, insert_batch, batch_size)
+              insert_count = insert_count + 1
 
-            if insert_count % batch_size == 0:
-              commit_insert_batch(carto, insert_batch)
-              insert_batch = []
-              print "inserted %s so far" % insert_count;
-          the_geom = []
-          current_segment_datestamp = datetime.datetime.strptime(child.attrib['v'], "%m/%d/%Y %I:%M:%S %p")
+              if insert_count % batch_size == 0:
+                commit_insert_batch(carto, insert_batch)
+                insert_batch = []
+                print "inserted %s so far" % insert_count;
+            the_geom = []
+            current_segment_datestamp = datetime.datetime.strptime(child.attrib['v'], "%m/%d/%Y %I:%M:%S %p")
 
-        datestamp = current_segment_datestamp
-        the_geom.append([node.attrib['lat'], node.attrib['lon']])
+          datestamp = current_segment_datestamp
+          the_geom.append([node.attrib['lat'], node.attrib['lon']])
+    except:
+      print ("some error ocurred", sys.exc_info()[0])
 
   # do one final insert for the remainder
   if len(insert_batch) > 0:
