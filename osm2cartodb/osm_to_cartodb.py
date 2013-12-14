@@ -92,7 +92,7 @@ while True:
 
     # read OSM file
     tree = ET.parse("../osm/%s" % osm_file)
-    for node in tree.getroot().iter('node'):
+    for node in tree.getroot().findall('node'):
       # print current_segment_datestamp
       # print node.attrib
       for child in node:
