@@ -21,6 +21,8 @@ drv = ogr.GetDriverByName(driverName)
 count = 0
 
 while True:
+    plow_count = 0
+    enough_traces = 0
 
     con = sqlite3.connect("plow.db")
     cur = con.cursor()
@@ -28,6 +30,7 @@ while True:
     plows = cur.execute("select asset_name, object_id from assets").fetchall()
     
     for plow in plows:
+        plow_count += 1
         previous_period = datetime.datetime.now() - datetime.timedelta(hours=1)
         plow_name = plow[0]
         object_id = plow[1]
@@ -41,6 +44,8 @@ while True:
 
         if len(plow_track) < 20:
             continue
+        else:
+	    enough_traces += 1
 
 
         if testWindow(plow_track, previous_period) is False :
@@ -86,7 +91,7 @@ while True:
 
     con.close()
     count += 1
-    print count
+    print 'iteration', count, ':', enough_traces, 'traces /', plow_count, 'plows'
     time.sleep(10)        
 
 
