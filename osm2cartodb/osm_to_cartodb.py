@@ -2,6 +2,7 @@ from os import listdir
 from os.path import isfile, join
 import datetime
 import time
+import sys
 
 from cartodb_settings import CARTODB_SETTINGS
 from cartodb import CartoDBAPIKey, CartoDBException
