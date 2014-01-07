@@ -56,7 +56,7 @@ con.commit()
 con.close()
 
 # The feed for City Of Chicago's Plow Data
-gps_data_url = "https://gisapps.cityofchicago.org/ArcGISRest/services/ExternalApps/operational/MapServer/38/query?where=POSTING_TIME+%3E+SYSDATE-30/24/60+&returnGeometry=true&outSR=4326&outFields=ADDRESS,POSTING_TIME,ASSET_NAME,ASSET_TYPE,OBJECTID&f=pjson"
+gps_data_url = "https://gisapps.cityofchicago.org/snowplows/services/trackingservice/getPositions"
 
 
 # We'll use these variables to keep track of whether we observe a new
@@ -79,7 +79,8 @@ faults = 0
 while True:
     # Try to handle anything besides a well-formed json response
     try:
-        response = requests.get(gps_data_url)
+        payload = {"TrackingInput":{"envelope":{"minX":0,"minY":0,"maxX":0,"maxY":0},"trackingDuration":15}}
+        response = requests.post(gps_data_url, data=json.dumps(payload))
     except Exception as e :
         print e
         sleep(fault_sleep)
@@ -90,7 +91,7 @@ while True:
         sleep(fault_sleep)
         faults += 1
         continue
-    if len(response.json()['features']) == 0:
+    if len(response.json()['TrackingResponse']['locationList']) == 0:
         print "No traces present"
         sleep(fault_sleep)
         faults += 1
@@ -105,19 +106,19 @@ while True:
     read_data = response.json()
 
     updates = 0
-    for route_point in read_data['features'] :
+    for route_point in read_data['TrackingResponse']['locationList'] :
         
         (object_id,
          asset_name,
          asset_type,
          posting_time,
          x,
-         y) = (route_point['attributes']['OBJECTID'],
-               route_point['attributes']['ASSET_NAME'],
-               route_point['attributes']['ASSET_TYPE'],
-               route_point['attributes']['POSTING_TIME'],
-               route_point['geometry']['x'],
-               route_point['geometry']['y'])
+         y) = (route_point['objectid'],
+               route_point['assetName'],
+               route_point['assetType'],
+               route_point['postingTimeFormatted'],
+               route_point['XCoord'],
+               route_point['YCoord'])
 
         posting_time = formatTime(posting_time, time_format)
 
