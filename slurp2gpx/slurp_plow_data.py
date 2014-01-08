@@ -108,17 +108,20 @@ while True:
     updates = 0
     for route_point in read_data['TrackingResponse']['locationList'] :
         
-        (object_id,
-         asset_name,
-         asset_type,
-         posting_time,
-         x,
-         y) = (route_point['objectid'],
-               route_point['assetName'],
-               route_point['assetType'],
-               route_point['postingTimeFormatted'],
-               route_point['XCoord'],
-               route_point['YCoord'])
+        try: 
+            (object_id,
+             asset_name,
+             asset_type,
+             posting_time,
+             x,
+             y) = (route_point['objectid'],
+                   route_point['assetName'],
+                   route_point['assetType'],
+                   route_point['postingTimeFormatted'],
+                   route_point['XCoord'],
+                   route_point['YCoord'])
+        except TypeError:
+            continue
 
         posting_time = formatTime(posting_time, time_format)
 
