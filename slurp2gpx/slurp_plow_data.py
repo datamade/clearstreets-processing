@@ -103,7 +103,11 @@ while True:
     con = sqlite3.connect("plow.db")
     cur = con.cursor()
 
-    read_data = response.json()
+    try:
+    	read_data = response.json()
+    except:
+	print "Can't parse JSON feed"
+	read_data = {'TrackingResponse': {'locationList': {}}}
 
     updates = 0
     for route_point in read_data['TrackingResponse']['locationList'] :

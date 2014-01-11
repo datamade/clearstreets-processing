@@ -22,7 +22,7 @@ def get_latest_insert(plow_id, carto):
     return latest
 
   except CartoDBException as e:
-    print ("some error ocurred", e)
+    print "Error ", e
 
 def add_to_insert_batch(plow_id, datestamp, the_geom, carto, insert_batch, batch_size):
 
@@ -55,14 +55,14 @@ def commit_insert_batch(carto, insert_batch):
     carto.sql(insert_sql)
     insert_batch = []
   except CartoDBException as e:
-    print ("some error ocurred", e)
+    print "Error ", e
 
 def clear_out_table(carto):
   print "clearing out table"
   try:
     carto.sql("delete from %s" % CARTODB_SETTINGS['table'])
   except CartoDBException as e:
-    print ("some error ocurred", e)
+    print "Error ", e
 
 # setup
 user =  CARTODB_SETTINGS['user']
@@ -115,9 +115,8 @@ while True:
 
           datestamp = current_segment_datestamp
           the_geom.append([node.attrib['lat'], node.attrib['lon']])
-    except:
-      print ("some error ocurred", sys.exc_info()[0])
-
+    except Exception, e:
+      print "Unexpected error:", e
   # do one final insert for the remainder
   if len(insert_batch) > 0:
     commit_insert_batch(carto, insert_batch)
