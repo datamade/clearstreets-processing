@@ -104,10 +104,10 @@ while True:
     cur = con.cursor()
 
     try:
-    	read_data = response.json()
+        read_data = response.json()
     except:
-	print "Can't parse JSON feed"
-	read_data = {'TrackingResponse': {'locationList': {}}}
+        print "Can't parse JSON feed"
+        read_data = {'TrackingResponse': {'locationList': {}}}
 
     updates = 0
     for route_point in read_data['TrackingResponse']['locationList'] :
