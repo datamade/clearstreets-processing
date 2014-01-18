@@ -86,18 +86,11 @@ while True:
         sleep(fault_sleep)
         faults += 1
         continue
-    if "Sorry, servers are currently down" in response:
-        print "Sorry, servers are currently down"
-        sleep(fault_sleep)
-        faults += 1
-        continue
-    if len(response.json()) <= 1:
-        print "No traces present"
-        sleep(fault_sleep)
-        faults += 1
-        continue
-    if len(response.json()['TrackingResponse']['locationList']) == 0:
-        print "No traces present"
+    
+    try:
+        read_data = response.json()['TrackingResponse']['locationList']
+    except Exception as e :
+        print "Expected 'TrackingResponse' and 'locationList' not in response"
         sleep(fault_sleep)
         faults += 1
         continue
@@ -108,14 +101,8 @@ while True:
     con = sqlite3.connect("plow.db")
     cur = con.cursor()
 
-    try:
-        read_data = response.json()
-    except:
-        print "Can't parse JSON feed"
-        read_data = {'TrackingResponse': {'locationList': {}}}
-
     updates = 0
-    for route_point in read_data['TrackingResponse']['locationList'] :
+    for route_point in read_data:
         
         try: 
             (object_id,
