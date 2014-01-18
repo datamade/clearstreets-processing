@@ -91,6 +91,11 @@ while True:
         sleep(fault_sleep)
         faults += 1
         continue
+    if len(response.json()) <= 1:
+        print "No traces present"
+        sleep(fault_sleep)
+        faults += 1
+        continue
     if len(response.json()['TrackingResponse']['locationList']) == 0:
         print "No traces present"
         sleep(fault_sleep)
