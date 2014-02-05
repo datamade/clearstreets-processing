@@ -7,7 +7,6 @@ main-snow-routes.json
 .DS_Store
 *.csv
 *.tar.gz
-*.zip
 *.pyc
 connectioninfo.php
 cartodb_settings.py
