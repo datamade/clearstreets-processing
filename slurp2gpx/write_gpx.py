@@ -42,7 +42,8 @@ while True:
     con = sqlite3.connect("plow.db")
     cur = con.cursor()
     ## Create trace for each asset
-    plows = cur.execute("select asset_name, object_id from assets").fetchall()
+    # known asset types = 'SNOW PLOW', 'SNOW 4X4', 'SALT SPREADER'
+    plows = cur.execute("select asset_name, object_id from assets WHERE asset_type = 'SNOW PLOW'").fetchall()
     
     for plow in plows:
         plow_count += 1
@@ -58,6 +59,7 @@ while True:
 
 
         if len(plow_track) < 20:
+            print '%s: only %s trace(s), skipping' % (object_id, len(plow_track))
             continue
         else:
 	    enough_traces += 1

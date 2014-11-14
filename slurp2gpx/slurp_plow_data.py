@@ -41,6 +41,7 @@ cur.execute("""
 CREATE TABLE IF NOT EXISTS route_points
 (object_id INTEGER,
  posting_time DATETIME,
+ direction INTEGER,
  X DOUBLE,
  Y DOUBLE,
  UNIQUE(object_id, posting_time) ON CONFLICT REPLACE)""")
@@ -56,7 +57,7 @@ con.commit()
 con.close()
 
 # The feed for City Of Chicago's Plow Data
-gps_data_url = "https://gisapps.cityofchicago.org/snowplows/services/trackingservice/getPositions"
+gps_data_url = "https://gisapps.cityofchicago.org/PlowTrackerWeb/services/trackingservice/getPositions"
 
 
 # We'll use these variables to keep track of whether we observe a new
@@ -79,7 +80,7 @@ faults = 0
 while True:
     # Try to handle anything besides a well-formed json response
     try:
-        payload = {"TrackingInput":{"envelope":{"minX":0,"minY":0,"maxX":0,"maxY":0},"trackingDuration":15}}
+        payload = {"TrackingInput":{"envelope":{"minX":0,"minY":0,"maxX":0,"maxY":0},"duration":0,"refresh":30}}
         response = requests.post(gps_data_url, data=json.dumps(payload))
     except Exception as e :
         print e
@@ -109,11 +110,13 @@ while True:
              asset_name,
              asset_type,
              posting_time,
+             direction,
              x,
-             y) = (route_point['objectid'],
+             y) = (int(route_point['assetName'].replace("S","")), # cast the assetName to an integer
                    route_point['assetName'],
                    route_point['assetType'],
                    route_point['postingTimeFormatted'],
+                   route_point['directionDegrees'],
                    route_point['XCoord'],
                    route_point['YCoord'])
         except TypeError:
@@ -122,9 +125,9 @@ while True:
         posting_time = formatTime(posting_time, time_format)
 
         # Insert Data into DB
-        cur.execute("""insert into route_points (object_id, posting_time, X, Y)
-                       values (?, ?, ?, ?)""",
-                    (object_id, posting_time, x, y))
+        cur.execute("""insert into route_points (object_id, posting_time, direction, X, Y)
+                       values (?, ?, ?, ?, ?)""",
+                    (object_id, posting_time, direction, x, y))
         cur.execute("""insert into assets (object_id, asset_name, asset_type)
                        values (?, ?, ?)""",
                     (object_id, asset_name, asset_type))
