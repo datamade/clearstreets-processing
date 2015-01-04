@@ -57,7 +57,7 @@ con.commit()
 con.close()
 
 # The feed for City Of Chicago's Plow Data
-gps_data_url = "https://gisapps.cityofchicago.org/PlowTrackerWeb/services/trackingservice/getPositions"
+gps_data_url = "https://gisapps.cityofchicago.org/PlowTrackerWeb/services/plowtrackerservice/getTrackingData"
 
 
 # We'll use these variables to keep track of whether we observe a new
@@ -80,7 +80,7 @@ faults = 0
 while True:
     # Try to handle anything besides a well-formed json response
     try:
-        payload = {"TrackingInput":{"envelope":{"minX":0,"minY":0,"maxX":0,"maxY":0},"duration":0,"refresh":30}}
+        payload = {"TrackingDataInput":{"envelope":{"minX":0,"minY":0,"maxX":0,"maxY":0}}}
         response = requests.post(gps_data_url, data=json.dumps(payload))
     except Exception as e :
         print e
@@ -89,7 +89,7 @@ while True:
         continue
     
     try:
-        read_data = response.json()['TrackingResponse']['locationList']
+        read_data = response.json()['TrackingDataResponse']['locationList']
     except Exception as e :
         print "Expected 'TrackingResponse' and 'locationList' not in response"
         sleep(fault_sleep)
