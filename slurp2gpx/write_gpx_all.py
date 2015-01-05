@@ -75,9 +75,9 @@ for plow in plows:
 
         # if the point is in X/Y, do the OGR conversion
         if point[2] > 1000:
-            (long, lat, z) = xform.TransformPoint(point[2], point[3])
+            (long, lat, z) = xform.TransformPoint(point[3], point[4])
         else:
-            (long, lat) = (point[2], point[3])
+            (long, lat) = (point[3], point[4])
 
         pt = ogr.Geometry(ogr.wkbPoint)
         pt.SetPoint_2D(0, long, lat)
