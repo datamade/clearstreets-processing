@@ -43,7 +43,7 @@ while True:
     cur = con.cursor()
     ## Create trace for each asset
     # known asset types = 'SNOW PLOW', 'SNOW 4X4', 'SALT SPREADER'
-    plows = cur.execute("select asset_name, object_id from assets WHERE asset_type = 'SNOW PLOW'").fetchall()
+    plows = cur.execute("select asset_name, object_id from assets").fetchall()
     
     for plow in plows:
         plow_count += 1
