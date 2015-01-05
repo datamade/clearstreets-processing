@@ -74,7 +74,7 @@ for plow in plows:
         feature.SetField("track_fid", 1)
 
         # if the point is in X/Y, do the OGR conversion
-        if point[2] > 1000:
+        if point[3] > 1000:
             (long, lat, z) = xform.TransformPoint(point[3], point[4])
         else:
             (long, lat) = (point[3], point[4])
