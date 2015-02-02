@@ -93,7 +93,11 @@ while True:
             feature.SetField("track_seg_id", 1 )
             feature.SetField("track_fid", 1)
 
-            (long, lat, z) = xform.TransformPoint(point[3], point[4])
+            if point[3] > 1000:
+                (long, lat, z) = xform.TransformPoint(point[3], point[4])
+            else:
+                (long, lat) = (point[3], point[4])
+                
             pt = ogr.Geometry(ogr.wkbPoint)
             pt.SetPoint_2D(0, long, lat)
             feature.SetGeometry(pt)

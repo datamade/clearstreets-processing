@@ -156,12 +156,15 @@ while True:
         intervals.append(sampling_frequency)
 
     # Estimate the update rate
-    r = [] 
-    for object_id in update_history :
-        z = sum(update_history[object_id])
-        if z > 0 :
-            icgm = irregularCGM(intervals, update_history[object_id])
-            r.append(fsolve(icgm, .01))
+    r = []
+    try: 
+        for object_id in update_history :
+            z = sum(update_history[object_id])
+            if z > 0 :
+                icgm = irregularCGM(intervals, update_history[object_id])
+                r.append(fsolve(icgm, .01))
+    except Exception as e :
+        print e
 
     # Assuming that updates are drawn from a Poisson distribution,
     # then with some probability, we will observe LESS than 2 events
