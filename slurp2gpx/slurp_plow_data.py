@@ -181,12 +181,13 @@ while True:
     #
     # http://www.wolframalpha.com/input/?i=exp(-bx)%2Bbxexp(-bx)%3D.8
 
-    sampling_frequency = max(.824388/max(r), 10)
-    print "Estimated Average Update Interval: " + str(int(1/max(r))) + " seconds"
-    print "Sampling Interval:                 " + str(int(sampling_frequency)) + " seconds"
-    print "Updates:                           " + str(updates)
-    print ""
+    if len(r) > 0:
+        sampling_frequency = max(.824388/max(r), 10)
+        print "Estimated Average Update Interval: " + str(int(1/max(r))) + " seconds"
+        print "Sampling Interval:                 " + str(int(sampling_frequency)) + " seconds"
+        print "Updates:                           " + str(updates)
+        print ""
+    else:
+        print "Sampling Interval:                 " + str(int(sampling_frequency)) + " seconds"
+    
     sleep(sampling_frequency)    
-
-
-
