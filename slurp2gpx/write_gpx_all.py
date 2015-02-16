@@ -33,7 +33,7 @@ xform = osr.CoordinateTransformation(utm_srs, ll_srs)
 driverName = "GPX"
 drv = ogr.GetDriverByName(driverName)
 
-con = sqlite3.connect("plow-2015-02-03-1600.db")
+con = sqlite3.connect("plow.db")
 cur = con.cursor()
 ## Create trace for each asset
 plows = cur.execute("select asset_name, object_id from assets").fetchall()
