@@ -7,7 +7,7 @@ cd ./slurp2gpx/
 echo 'writing out all GPX files'
 python write_gpx_all.py > ~/logs/write_gpx_all.txt
 echo 'zipping up GPX'
-tar -zcvf backups/gpx-${DATE}.tar.gz write_gpx_all.gpx
+tar -zcvf ../backups/gpx-${DATE}.tar.gz write_gpx_all.gpx
 echo 'deleting GPX'
 rm ./slurp2gpx/write_gpx_all.gpx
 echo 'moving plow.db'
