@@ -5,13 +5,6 @@ import time, datetime
 import os
 import glob
 
-def testWindow(l, test_time) :
-    times = []
-    for point in l :
-        times.append(datetime.datetime.strptime(point[1], "%Y-%m-%d %H:%M:%S"))
-    return all([time > test_time for time in times])
-        
-
 path = "./"
 
 ####################################################
@@ -33,6 +26,13 @@ xform = osr.CoordinateTransformation(utm_srs, ll_srs)
 driverName = "GPX"
 drv = ogr.GetDriverByName(driverName)
 
+## create data source gpx
+file_path = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M") + ".gpx"
+ds = drv.CreateDataSource(file_path)
+if ds is None:
+    os.remove(file_path)
+    ds = drv.CreateDataSource(file_path)
+
 con = sqlite3.connect("plow.db")
 cur = con.cursor()
 ## Create trace for each asset
@@ -48,11 +48,6 @@ for plow in plows:
     # Return the last N points, in order 
     plow_track = cur.execute("select * from route_points where object_id = ? order by posting_time desc", (str(object_id),))
 
-    ds = drv.CreateDataSource("../gpx/" + plow_name + ".gpx")
-    if ds is None:
-        os.remove("../gpx/" + plow_name + ".gpx")
-        ds = drv.CreateDataSource("../gpx/" + plow_name + ".gpx")
-    
     layer = ds.CreateLayer("track_points", None, ogr.wkbPoint)
 
     for point in plow_track :
@@ -67,7 +62,7 @@ for plow in plows:
                          wpt_time.second,
                          0)
 
-        feature.SetField("track_seg_id", 1 )
+        feature.SetField("track_seg_id", object_id )
         feature.SetField("track_fid", 1)
 
         # if the point is in X/Y, do the OGR conversion
@@ -88,8 +83,8 @@ for plow in plows:
     print "added %s points" % count
 
     layer.SyncToDisk()
-    ds = None
-
+    
+ds = None
 con.close()
 print 'done'     
 
