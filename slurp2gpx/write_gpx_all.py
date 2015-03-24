@@ -27,7 +27,7 @@ driverName = "GPX"
 drv = ogr.GetDriverByName(driverName)
 
 ## create data source gpx
-file_path = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M") + ".gpx"
+file_path = "write_gpx_all.gpx"
 ds = drv.CreateDataSource(file_path)
 if ds is None:
     os.remove(file_path)
