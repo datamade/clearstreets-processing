@@ -99,7 +99,7 @@ class Slurper(object):
 
         now = int(time.mktime(datetime.datetime.now().timetuple()))
         
-        response = self.fetchData()
+        response = next(self.fetchData())
         with open('%s.json' % now, 'w') as f:
             f.write(json.dumps(response))
 
@@ -108,10 +108,14 @@ class Slurper(object):
         if self.test_mode:
             from os.path import abspath, join, dirname
 
-            test_feed_file = abspath(join(dirname(__file__), 'test_feed.json'))
-            test_feed = json.load(open(test_feed_file))
-            
-            return feed
+            test_feed_dir = abspath(join(dirname(__file__), '..', 'test_data'))
+
+            for test_file in sorted(os.listdir(test_feed_dir)):
+                
+                test_file_path = abspath(join(test_feed_dir, test_file))
+                test_feed = json.load(open(test_feed_path))
+                
+                yield test_feed
 
         try:
             payload = {"TrackingDataInput":{"envelope":{"minX":0,"minY":0,"maxX":0,"maxY":0}}}
@@ -129,14 +133,14 @@ class Slurper(object):
             sleep(fault_sleep)
             self.faults += 1
         
-        return feed
+        yield feed
 
     def insertPoints(self):
         # This is inside the loop as an act of perhaps irrational
         # defensive programming, as the script stopped updating the db for
         # no apparent reasons and without throwing an error.
         
-        locations = self.fetchData()['TrackingDataResponse']['locationList']
+        locations = next(self.fetchData())['TrackingDataResponse']['locationList']
 
         for route_point in locations:
             
