@@ -93,6 +93,17 @@ class Slurper(object):
         
         return iCGM
     
+    def writeRawResponse(self):
+        # Used only to get raw responses for testing / debugging
+        import time
+
+        now = int(time.mktime(datetime.datetime.now().timetuple()))
+        
+        response = self.fetchData()
+        with open('%s.json' % now, 'w') as f:
+            f.write(json.dumps(response))
+
+
     def fetchData(self):
         if self.test_mode:
             from os.path import abspath, join, dirname
@@ -100,7 +111,7 @@ class Slurper(object):
             test_feed_file = abspath(join(dirname(__file__), 'test_feed.json'))
             test_feed = json.load(open(test_feed_file))
             
-            return test_feed['TrackingDataResponse']['locationList']
+            return feed
 
         try:
             payload = {"TrackingDataInput":{"envelope":{"minX":0,"minY":0,"maxX":0,"maxY":0}}}
@@ -111,20 +122,23 @@ class Slurper(object):
             self.faults += 1
         
         try:
-            read_data = response.json()['TrackingDataResponse']['locationList']
+            feed = response.json()
+            read_data = feed['TrackingDataResponse']['locationList']
         except Exception as e :
             print "Expected 'TrackingResponse' and 'locationList' not in response"
             sleep(fault_sleep)
             self.faults += 1
         
-        return read_data
+        return feed
 
     def insertPoints(self):
         # This is inside the loop as an act of perhaps irrational
         # defensive programming, as the script stopped updating the db for
         # no apparent reasons and without throwing an error.
+        
+        locations = self.fetchData()['TrackingDataResponse']['locationList']
 
-        for route_point in self.fetchData():
+        for route_point in locations:
             
             point = {}
             
