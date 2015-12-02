@@ -1,3 +1,4 @@
+import os
 import json
 import time
 import datetime
@@ -113,7 +114,7 @@ class Slurper(object):
             for test_file in sorted(os.listdir(test_feed_dir)):
                 
                 test_file_path = abspath(join(test_feed_dir, test_file))
-                test_feed = json.load(open(test_feed_path))
+                test_feed = json.load(open(test_file_path))
                 
                 yield test_feed
 
