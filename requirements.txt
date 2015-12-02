@@ -2,6 +2,7 @@ cartodb
 oauth2
 simplejson
 requests
-gdal
+psycopg2
+sqlalchemy
 numpy
 scipy

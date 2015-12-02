@@ -1,0 +1,90 @@
+{
+   "TrackingDataResponse":{
+      "locationList":[
+         {
+            "address":"1439 W Pershing Rd",
+            "assetName":"S11726",
+            "assetType":"SALT SPREADER",
+            "directionDegrees":179,
+            "latitude":41.822445,
+            "longitude":-87.662315,
+            "postingTime":"2014-11-14T15:44:48-06:00",
+            "XCoord":1167147.960848,
+            "YCoord":1878603.448735,
+            "postingTimeFormatted":"Fri Nov 14 15:44:48 CST 2014"
+         },
+         {
+            "address":"4623 W Homer St",
+            "assetName":"S11648",
+            "assetType":"SALT SPREADER",
+            "directionDegrees":178,
+            "latitude":41.916035,
+            "longitude":-87.74223,
+            "postingTime":"2014-11-14T15:45:15-06:00",
+            "XCoord":1145130.777428,
+            "YCoord":1912547.438399,
+            "postingTimeFormatted":"Fri Nov 14 15:45:15 CST 2014"
+         },
+         {
+            "address":"1439 W Pershing Rd",
+            "assetName":"S11677",
+            "assetType":"SALT SPREADER",
+            "directionDegrees":357,
+            "latitude":41.822056,
+            "longitude":-87.66284,
+            "postingTime":"2014-11-14T15:46:28-06:00",
+            "XCoord":1167005.968216,
+            "YCoord":1878460.581814,
+            "postingTimeFormatted":"Fri Nov 14 15:46:28 CST 2014"
+         },
+         {
+            "address":"5223 S Whipple St",
+            "assetName":"S11633",
+            "assetType":"SALT SPREADER",
+            "directionDegrees":12,
+            "latitude":41.798042,
+            "longitude":-87.68318,
+            "postingTime":"2014-11-14T15:48:26-06:00",
+            "XCoord":1161528.078772,
+            "YCoord":1869667.407122,
+            "postingTimeFormatted":"Fri Nov 14 15:48:26 CST 2014"
+         },
+         {
+            "address":"N Rockwell St",
+            "assetName":"S11651",
+            "assetType":"SALT SPREADER",
+            "directionDegrees":267,
+            "latitude":41.89138,
+            "longitude":-87.69174,
+            "postingTime":"2014-11-14T15:44:08-06:00",
+            "XCoord":1158939.911943,
+            "YCoord":1903661.909324,
+            "postingTimeFormatted":"Fri Nov 14 15:44:08 CST 2014"
+         },
+         {
+            "address":"1820 W 17th St",
+            "assetName":"S11712",
+            "assetType":"SALT SPREADER",
+            "directionDegrees":180,
+            "latitude":41.858818,
+            "longitude":-87.63062,
+            "postingTime":"2014-11-14T15:41:30-06:00",
+            "XCoord":1175678.601809,
+            "YCoord":1891926.715122,
+            "postingTimeFormatted":"Fri Nov 14 15:41:30 CST 2014"
+         },
+         {
+            "address":"1700 S Clark St",
+            "assetName":"S13208",
+            "assetType":"SNOW 4X4",
+            "directionDegrees":182,
+            "latitude":41.858517,
+            "longitude":-87.63044,
+            "postingTime":"2014-11-14T15:34:10-06:00",
+            "XCoord":1175728.534458,
+            "YCoord":1891817.432742,
+            "postingTimeFormatted":"Fri Nov 14 15:34:10 CST 2014"
+         }
+      ]
+   }
+}
