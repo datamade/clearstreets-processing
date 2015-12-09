@@ -35,7 +35,7 @@ class Slurper(object):
 
         # Even if we are unable to get any data, we need to keep track of the
         # time we spent on that attempt
-        self.fault_sleep = 60
+        self.fault_sleep = 10
         self.faults = 0
         
         self.route_points_table = sa.Table('route_points', sa.MetaData(),
@@ -44,6 +44,10 @@ class Slurper(object):
                                       sa.Column('direction', sa.Integer),
                                       sa.Column('x', sa.Float),
                                       sa.Column('y', sa.Float),
+                                      sa.Column('lat', sa.Float),
+                                      sa.Column('lon', sa.Float),
+                                      sa.Column('inserted', sa.Boolean, 
+                                                server_default=sa.text('FALSE')),
                                       sa.UniqueConstraint('object_id', 'posting_time'))
 
         
@@ -58,8 +62,11 @@ class Slurper(object):
 
         self.initializeDB(recreate=recreate)
 
-        while True:
-            self.insertData()
+        for route_point in self.fetchData():
+            
+            if route_point:
+                self.insertPoints(route_point)
+            
             self.incrementSamplingInterval()
 
     
@@ -96,9 +103,7 @@ class Slurper(object):
     
     def writeRawResponse(self):
         # Used only to get raw responses for testing / debugging
-        import time
-
-        now = int(time.mktime(datetime.datetime.now().timetuple()))
+        now = int(datetime.datetime.now().timestamp())
         
         response = next(self.fetchData())
         with open('%s.json' % now, 'w') as f:
@@ -116,53 +121,54 @@ class Slurper(object):
                 test_file_path = abspath(join(test_feed_dir, test_file))
                 test_feed = json.load(open(test_file_path))
                 
-                yield test_feed
-
-        try:
-            payload = {"TrackingDataInput":{"envelope":{"minX":0,"minY":0,"maxX":0,"maxY":0}}}
-            response = requests.post(self.gps_data_url, data=json.dumps(payload))
-        except Exception as e :
-            print e
-            sleep(fault_sleep)
-            self.faults += 1
+                yield test_feed['TrackingDataResponse']['locationList']
         
-        try:
-            feed = response.json()
-            read_data = feed['TrackingDataResponse']['locationList']
-        except Exception as e :
-            print "Expected 'TrackingResponse' and 'locationList' not in response"
-            sleep(fault_sleep)
-            self.faults += 1
-        
-        yield feed
+        while True:
+            try:
+                payload = {"TrackingDataInput":{"envelope":{"minX":0,"minY":0,"maxX":0,"maxY":0}}}
+                response = requests.post(self.gps_data_url, data=json.dumps(payload))
+            except Exception as e :
+                print(e)
+                sleep(self.fault_sleep)
+                self.faults += 1
+            
+            try:
+                feed = response.json()
+                read_data = feed['TrackingDataResponse']['locationList']
+                yield read_data
+            except Exception as e :
+                print("Expected 'TrackingResponse' and 'locationList' not in response")
+                sleep(self.fault_sleep)
+                self.faults += 1
+                yield None
 
-    def insertPoints(self):
+    def insertPoints(self, route_points):
         # This is inside the loop as an act of perhaps irrational
         # defensive programming, as the script stopped updating the db for
         # no apparent reasons and without throwing an error.
         
-        locations = next(self.fetchData())['TrackingDataResponse']['locationList']
-
-        for route_point in locations:
+        for route_point in route_points:
             
             point = {}
             
-            try: 
-                (point['object_id'],
-                 asset_name,
-                 asset_type,
-                 point['posting_time'],
-                 point['direction'],
-                 point['x'],
-                 point['y']) = (int(route_point['assetName'].replace("S","")), # cast the assetName to an integer
-                       route_point['assetName'],
-                       route_point['assetType'],
-                       route_point['postingTimeFormatted'],
-                       route_point['directionDegrees'],
-                       route_point['XCoord'],
-                       route_point['YCoord'])
-            except TypeError:
-                continue
+            (point['object_id'],
+             asset_name,
+             asset_type,
+             point['posting_time'],
+             point['direction'],
+             point['x'],
+             point['y'],
+             point['lat'],
+             point['lon']) = (int(route_point['assetName'].replace("S","")), # cast the assetName to an integer
+                   route_point['assetName'],
+                   route_point['assetType'],
+                   route_point['postingTimeFormatted'],
+                   route_point['directionDegrees'],
+                   route_point['XCoord'],
+                   route_point['YCoord'],
+                   route_point['latitude'],
+                   route_point['longitude'])
+                
 
             point['posting_time'] = self.formatTime(point['posting_time'], 
                                                     self.time_format)
@@ -201,6 +207,9 @@ class Slurper(object):
 
             except sa.exc.IntegrityError:
                 trans.rollback()
+            
+            conn.close()
+            self.engine.dispose()
 
             if point['posting_time'] > self.last_posting_time :
                 self.last_posting_time = point['posting_time']
@@ -214,7 +223,7 @@ class Slurper(object):
     def incrementSamplingInterval(self):
 
         # Add the sampling interval
-        previous_posting_time = last_posting_time
+        previous_posting_time = self.last_posting_time
         if self.faults :
             self.intervals.append(self.sampling_frequency
                              + self.faults*self.fault_sleep)
@@ -228,10 +237,10 @@ class Slurper(object):
             for object_id in self.update_history :
                 z = sum(self.update_history[object_id])
                 if z > 0 :
-                    icgm = self.irregularCGM(intervals, self.update_history[object_id])
+                    icgm = self.irregularCGM(self.intervals, self.update_history[object_id])
                     r.append(fsolve(icgm, .01))
         except Exception as e :
-            print e
+            print(e)
 
         # Assuming that updates are drawn from a Poisson distribution,
         # then with some probability, we will observe LESS than 2 events
@@ -250,11 +259,11 @@ class Slurper(object):
 
         if len(r) > 0:
             self.sampling_frequency = max(.824388/max(r), 10)
-            print "Estimated Average Update Interval: " + str(int(1/max(r))) + " seconds"
-            print "Sampling Interval:                 " + str(int(self.sampling_frequency)) + " seconds"
-            print "Updates:                           " + str(self.updates)
-            print ""
+            print("Estimated Average Update Interval: " + str(int(1/max(r))) + " seconds")
+            print("Sampling Interval:                 " + str(int(self.sampling_frequency)) + " seconds")
+            print("Updates:                           " + str(self.updates))
+            print('')
         else:
-            print "Sampling Interval:                 " + str(int(self.sampling_frequency)) + " seconds"
+            print("Sampling Interval:                 " + str(int(self.sampling_frequency)) + " seconds")
         
         sleep(self.sampling_frequency)    

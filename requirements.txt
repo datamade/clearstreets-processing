@@ -1,8 +1,5 @@
 cartodb
-oauth2
-simplejson
 requests
 psycopg2
 sqlalchemy
-numpy
 scipy
