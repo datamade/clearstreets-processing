@@ -9,11 +9,8 @@ ClearStreets is built with several different scripts. They work in the following
   
 ## Dependencies
 
-* Python
-* PHP
+* Python 3
 * [scipy](http://www.scipy.org/)
-* [gdal](http://trac.osgeo.org/gdal/wiki/GdalOgrInPython) for ogr
-* [mono](http://www.mono-project.com/Main_Page) (for linux)
 
 ## Still can't figure it out or more detail needed?
 
@@ -30,6 +27,6 @@ Email us!
 
 == Copyright
 
-Copyright (c) 2012 Open City. Released under the MIT License.
+Copyright (c) 2015 Open City. Released under the MIT License.
 
 See [LICENSE](https://github.com/open-city/clearstreets-processing/wiki/License) for details 
