@@ -39,6 +39,9 @@ class Slurper(object):
         self.faults = 0
         
         self.route_points_table = sa.Table('route_points', sa.MetaData(),
+                                      sa.Column('id', 
+                                                sa.Integer, 
+                                                primary_key=True),
                                       sa.Column('object_id', sa.Integer),
                                       sa.Column('posting_time', sa.DateTime),
                                       sa.Column('direction', sa.Integer),
@@ -48,7 +51,8 @@ class Slurper(object):
                                       sa.Column('lon', sa.Float),
                                       sa.Column('inserted', sa.Boolean, 
                                                 server_default=sa.text('FALSE')),
-                                      sa.UniqueConstraint('object_id', 'posting_time'))
+                                      sa.UniqueConstraint('object_id', 
+                                                          'posting_time'))
 
         
         self.assets_table = sa.Table('assets', sa.MetaData(),

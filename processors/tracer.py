@@ -31,8 +31,8 @@ class Tracer(object):
                 SELECT * 
                 FROM route_points
                 WHERE object_id = :object_id
+                  AND inserted = FALSE
                 ORDER BY posting_time DESC
-                LIMIT :limit
             ) AS s
             ORDER BY posting_time ASC
         '''
@@ -100,5 +100,15 @@ class Tracer(object):
         carto = CartoDBAPIKey(API_KEY, cartodb_domain)
         
         carto.sql(insert)
+    
+    def updateLocalTable(self, points):
+        update = ''' 
+            UPDATE route_points SET
+              inserted = TRUE
+            WHERE id IN :ids
+        '''
 
-
+        ids = tuple([r.id for r in points])
+        
+        with self.engine.begin() as conn:
+            conn.execute(sa.text(update), ids=ids)
