@@ -1,0 +1,13 @@
+DB_CONN = 'postgresql://eric:@localhost:5432/plows'
+
+CARTODB_SETTINGS = {
+  'user': '',
+  'api_key': '',
+  'domain': '',
+  'table': ''
+}
+
+OSRM_ENDPOINT = 'http://localhost:5000/match'
+AWS_KEY = ''
+AWS_SECRET = ''
+S3_BUCKET = ''

@@ -1,7 +1,6 @@
 cartodb
-oauth2
-simplejson
 requests
-gdal
-numpy
+psycopg2
+sqlalchemy
 scipy
+boto

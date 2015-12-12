@@ -12,3 +12,4 @@ main-snow-routes.json
 connectioninfo.php
 cartodb_settings.py
 debug.txt
+processors/config.py
