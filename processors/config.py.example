@@ -6,3 +6,8 @@ CARTODB_SETTINGS = {
   'domain': '',
   'table': ''
 }
+
+OSRM_ENDPOINT = 'http://localhost:5000/match'
+AWS_KEY = ''
+AWS_SECRET = ''
+S3_BUCKET = ''
