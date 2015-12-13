@@ -31,7 +31,7 @@ if __name__ == "__main__":
         if args.test_mode :
             slurper = TestSlurper()
         else :
-            slurper = Slurper(test_mode=args.test_mode)
+            slurper = Slurper()
         slurper.run(recreate=args.recreate_tables)
     
     if args.write_cartodb:
