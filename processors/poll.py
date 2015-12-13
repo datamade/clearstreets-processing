@@ -8,20 +8,18 @@ def poll(iterable, key=None, min_pause=10) :
     if key is None :
         key = lambda x : x
 
-    intervals = deque([60], 3)
-    changed = deque([True], 3)
+    intervals = deque([10, 10], 100)
+    changed = deque([True, False], 100)
 
+    # Initialize polling
     item = next(iterable)
     yield item
-
     last_key = key(item)
 
     t0 = time.clock()
     time.sleep(1)
 
-    while True :
-        item = next(iterable)
-
+    for item in iterable :
         intervals.append(time.clock() - t0)
         t0 = time.clock()
 
@@ -37,7 +35,7 @@ def poll(iterable, key=None, min_pause=10) :
 
         pause = max(min_pause, estimated_pause)
 
-        logging.info("Sampling Interval: {} seconds".format(pause))
+        logging.warning("Sampling Interval: {} seconds".format(pause))
 
         time.sleep(pause)
 
@@ -63,7 +61,7 @@ def bestPause(intervals, changed) :
 
     estimated_rate = fsolve(icgm, .01)[0]
 
-    logging.info("Estimated Average Update Interval: {} seconds".format(1.0/estimated_rate))
+    logging.warning("Estimated Average Update Interval: {} seconds".format(1.0/estimated_rate))
 
 
     # Assuming that updates are drawn from a Poisson distribution,
