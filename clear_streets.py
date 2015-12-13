@@ -2,7 +2,7 @@
 if __name__ == "__main__":
     import argparse
     import sys
-    from processors.slurper import Slurper
+    from processors.slurper import Slurper, TestSlurper
     from processors.tracer import Tracer
 
     parser = argparse.ArgumentParser(description='Clear the streets')
@@ -28,7 +28,10 @@ if __name__ == "__main__":
         sys.exit()
 
     if args.slurp:
-        slurper = Slurper(test_mode=args.test_mode)
+        if args.test_mode :
+            slurper = TestSlurper()
+        else :
+            slurper = Slurper(test_mode=args.test_mode)
         slurper.run(recreate=args.recreate_tables)
     
     if args.write_cartodb:

@@ -6,14 +6,13 @@ import requests
 import sqlalchemy as sa
 
 from processors.config import DB_CONN
-from processors.poller import poll
+from processors.poll import poll
 
 class Slurper(object):
     
-    def __init__(self, test_mode=False):
+    def __init__(self):
         self.engine = sa.create_engine(DB_CONN)
         self.time_format = "%a %b %d %H:%M:%S %Z %Y"
-        self.test_mode = test_mode
 
         self.gps_data_url = "https://gisapps.cityofchicago.org/PlowTrackerWeb/services/plowtrackerservice/getTrackingData"
         
@@ -43,17 +42,6 @@ class Slurper(object):
                                      sa.Column('asset_name', sa.String),
                                      sa.Column('asset_type', sa.String))
     
-    def run(self, recreate=False):
-
-        self.initializeDB(recreate=recreate)
-
-        for route_point in self.fetchData():
-            
-            if route_point:
-                self.insertPoints(route_point)
-            
-
-    
     def initializeDB(self, recreate=False):
 
         if recreate:
@@ -63,30 +51,7 @@ class Slurper(object):
         self.route_points_table.create(bind=self.engine, checkfirst=True)
         self.assets_table.create(bind=self.engine, checkfirst=True)
 
-    def formatTime(self, s, time_format) :
-        return datetime.datetime(*time.strptime(s, time_format)[:6])
-    
-    def writeRawResponse(self):
-        # Used only to get raw responses for testing / debugging
-        now = int(datetime.datetime.now().timestamp())
-        
-        response = next(self.fetchData())
-        with open('%s.json' % now, 'w') as f:
-            f.write(json.dumps(response))
-
-
     def fetchData(self):
-        if self.test_mode:
-            from os.path import abspath, join, dirname
-
-            test_feed_dir = abspath(join(dirname(__file__), '..', 'test_data'))
-
-            for test_file in sorted(os.listdir(test_feed_dir)):
-                
-                test_file_path = abspath(join(test_feed_dir, test_file))
-                test_feed = json.load(open(test_file_path))
-                
-                yield test_feed['TrackingDataResponse']['locationList']
         
         def data() :
             payload = {"TrackingDataInput":{"envelope":{"minX":0,
@@ -143,8 +108,7 @@ class Slurper(object):
                    route_point['longitude'])
                 
 
-            point['posting_time'] = self.formatTime(point['posting_time'], 
-                                                    self.time_format)
+            point['posting_time'] = self.formatTime(point['posting_time'])
             
             conn = self.engine.connect()
             trans = conn.begin()
@@ -183,4 +147,37 @@ class Slurper(object):
             
             conn.close()
             self.engine.dispose()
+
+    def formatTime(self, s) :
+        return datetime.datetime(*time.strptime(s, self.time_format)[:6])
+
+    def run(self, recreate=False):
+
+        self.initializeDB(recreate=recreate)
+
+        for route_point in self.fetchData():
+            self.insertPoints(route_point)
+
+class TestSlurper(Slurper) :
+    def fetchData(self):
+        from os.path import abspath, join, dirname
+
+        test_feed_dir = abspath(join(dirname(__file__), '..', 'test_data'))
+
+        for test_file in sorted(os.listdir(test_feed_dir)):
+                
+            test_file_path = abspath(join(test_feed_dir, test_file))
+            test_feed = json.load(open(test_file_path))
+                
+            yield test_feed['TrackingDataResponse']['locationList']
+
+    def writeRawResponse(self):
+        now = int(datetime.datetime.now().timestamp())
+        
+        response = next(self.fetchData())
+        with open('%s.json' % now, 'w') as f:
+            f.write(json.dumps(response))
+
+
+
 
