@@ -4,6 +4,7 @@ import datetime
 import time
 import requests
 import sqlalchemy as sa
+import logging
 
 from processors.config import DB_CONN
 from processors.poll import poll
@@ -15,8 +16,6 @@ class Slurper(object):
         self.time_format = "%a %b %d %H:%M:%S %Z %Y"
 
         self.gps_data_url = "https://gisapps.cityofchicago.org/PlowTrackerWeb/services/plowtrackerservice/getTrackingData"
-        
-        self.fault_sleep = 10
         
         self.route_points_table = sa.Table('route_points', sa.MetaData(),
                                       sa.Column('id', 
@@ -64,21 +63,18 @@ class Slurper(object):
                     response = requests.post(self.gps_data_url, 
                                              data=json.dumps(payload))
                 except Exception as e :
-                    print(e)
-                    time.sleep(self.fault_sleep)
+                    logging.warn(e)
+                    time.sleep(10)
                     continue
 
-                try:
-                    feed = response.json()
-                    locations = feed['TrackingDataResponse']['locationList']
-                    yield locations
-                except KeyError :
-                    print("Expected 'TrackingResponse' and 'locationList' not in response")
-                    time.sleep(self.fault_sleep)
-                    continue
+                yield response.json()
 
         for locations in poll(data()) :
-            yield locations
+            try:
+                yield locations['TrackingDataResponse']['locationList']
+            except KeyError :
+                logging.warn("Expected 'TrackingResponse' and 'locationList' not in response")
+
 
     def insertPoints(self, route_points):
         # This is inside the loop as an act of perhaps irrational

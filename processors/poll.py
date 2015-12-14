@@ -16,12 +16,12 @@ def poll(iterable, key=None, min_pause=10) :
     yield item
     last_key = key(item)
 
-    t0 = time.clock()
+    t0 = time.perf_counter()
     time.sleep(1)
 
     for item in iterable :
-        intervals.append(time.clock() - t0)
-        t0 = time.clock()
+        intervals.append(time.perf_counter() - t0)
+        t0 = time.perf_counter()
 
         if last_key != key(item) :
             yield item
@@ -44,7 +44,6 @@ def poll(iterable, key=None, min_pause=10) :
 def bestPause(intervals, changed) :
 
     # Rate of change estimator for irregularly sampled data
-    # we will want to solve for x
     #
     # Cho and Garcia Molina, 2003, Estimating Frequency of Change
     # http://dl.acm.org/citation.cfm?id=857170
@@ -62,7 +61,6 @@ def bestPause(intervals, changed) :
     estimated_rate = fsolve(icgm, .01)[0]
 
     logging.warning("Estimated Average Update Interval: {} seconds".format(1.0/estimated_rate))
-
 
     # Assuming that updates are drawn from a Poisson distribution,
     # then with some probability, we will observe LESS than 2 events
