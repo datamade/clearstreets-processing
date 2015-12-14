@@ -4,6 +4,7 @@ if __name__ == "__main__":
     import sys
     from processors.slurper import Slurper, TestSlurper
     from processors.tracer import Tracer
+    import logging
 
     parser = argparse.ArgumentParser(description='Clear the streets')
     parser.add_argument('--slurp', action='store_true',
@@ -21,7 +22,18 @@ if __name__ == "__main__":
     parser.add_argument('--backup', action='store_true',
                    help='Backup database contents to S3')
 
+    parser.add_argument('-v', '--verbose', dest='verbose', action='count',
+                help='Increase verbosity (specify multiple times for more)')
+
     args = parser.parse_args()
+
+    log_level = logging.WARNING 
+    if args.verbose :
+        if args.verbose == 1:
+            log_level = logging.INFO
+        elif args.ve >= 2:
+            log_level = logging.DEBUG
+    logging.getLogger().setLevel(log_level)
     
     if args.slurp and args.write_cartodb:
         print('Cannot slurp from city and write to CartoDB in the same process')
@@ -79,3 +91,7 @@ if __name__ == "__main__":
 
         conn.close()
         s3conn.close()
+
+
+
+

@@ -4,6 +4,8 @@ import numpy
 import time
 from collections import deque
 
+logger = logging.getLogger(__name__)
+
 def poll(iterable, key=None, min_pause=10) :
     if key is None :
         key = lambda x : x
@@ -35,7 +37,7 @@ def poll(iterable, key=None, min_pause=10) :
 
         pause = max(min_pause, estimated_pause)
 
-        logging.warning("Sampling Interval: {} seconds".format(pause))
+        logger.info("Sampling Interval: {} seconds".format(pause))
 
         time.sleep(pause)
 
@@ -60,7 +62,7 @@ def bestPause(intervals, changed) :
 
     estimated_rate = fsolve(icgm, .01)[0]
 
-    logging.warning("Estimated Average Update Interval: {} seconds".format(1.0/estimated_rate))
+    logger.info("Estimated Average Update Interval: {} seconds".format(1.0/estimated_rate))
 
     # Assuming that updates are drawn from a Poisson distribution,
     # then with some probability, we will observe LESS than 2 events
