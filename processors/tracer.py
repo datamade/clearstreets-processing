@@ -8,8 +8,9 @@ class Tracer(object):
     def __init__(self):
         self.osrm_endpoint = OSRM_ENDPOINT
         self.engine = sa.create_engine(DB_CONN)
-
+        
         self.point_limit = 40
+        self.matching_beta = 5
 
     def run(self):
         for asset in self.iterAssets():
@@ -26,7 +27,7 @@ class Tracer(object):
                     if inserted:
                         self.updateLocalTable(point_ids)
                 else:
-                    print(error)
+                    print(error, asset.object_id, last_posting_time)
 
 
     def iterAssets(self):
@@ -46,7 +47,7 @@ class Tracer(object):
                 ORDER BY posting_time DESC
               ) AS s
               ORDER BY posting_time ASC
-              LIMIT 40
+              LIMIT :limit
             ) UNION (
               SELECT *
                 FROM route_points
@@ -66,7 +67,7 @@ class Tracer(object):
 
     def getTrace(self, points):
         
-        point_fmt = 'loc={lat},{lon}&t={timestamp}'
+        point_fmt = 'loc={lat},{lon}&t={timestamp}&matching_beta={matching_beta}'
         
         query = []
         posting_times = []
@@ -78,7 +79,8 @@ class Tracer(object):
 
             point_query = point_fmt.format(lat=point.lat, 
                                            lon=point.lon, 
-                                           timestamp=posting_timestamp)
+                                           timestamp=posting_timestamp,
+                                           matching_beta=self.matching_beta)
             query.append(point_query)
             point_ids.append(point.id)
         
@@ -144,10 +146,8 @@ class Tracer(object):
                 print('CartoDB returned an error', cartodb.content)
                 return False
             
-            print('insert successful', asset_id, date_stamp)
             return True
         
-        print('No geojson')
         return False
 
     
