@@ -1,4 +1,3 @@
-cartodb
 requests
 psycopg2
 sqlalchemy
