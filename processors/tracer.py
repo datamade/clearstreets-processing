@@ -37,15 +37,25 @@ class Tracer(object):
     
     def getRecentPoints(self, asset):
         recent_points = ''' 
-            SELECT * FROM (
+            (
+              SELECT * FROM (
                 SELECT * 
                 FROM route_points
                 WHERE object_id = :object_id
                   AND inserted = FALSE
                 ORDER BY posting_time DESC
-            ) AS s
+              ) AS s
+              ORDER BY posting_time ASC
+              LIMIT 40
+            ) UNION (
+              SELECT *
+                FROM route_points
+              WHERE object_id = :object_id
+                AND inserted = TRUE
+              ORDER BY posting_time DESC
+              LIMIT 1
+            )
             ORDER BY posting_time ASC
-            LIMIT 40
         '''
 
         recent_points = self.engine.execute(sa.text(recent_points), 
