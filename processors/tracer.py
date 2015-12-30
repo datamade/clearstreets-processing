@@ -1,6 +1,7 @@
 import sqlalchemy as sa
 from processors.config import OSRM_ENDPOINT, DB_CONN, CARTODB_SETTINGS
 import requests
+import json
 
 class Tracer(object):
 
@@ -13,11 +14,20 @@ class Tracer(object):
     def run(self):
         for asset in self.iterAssets():
             points = self.getRecentPoints(asset)
-            trace_resp, last_posting_time = self.getTrace(points)
+            trace_resp, last_posting_time, point_ids = self.getTrace(points)
+            
             if trace_resp:
-                asset_geojson = self.createTraceGeoJSON(trace_resp)
-                self.insertCartoDB(asset.object_id, asset_geojson, last_posting_time)
-                self.updateLocalTable(points)
+                asset_geojson, error = self.createTraceGeoJSON(trace_resp)
+                
+                if not error:
+                    inserted = self.insertCartoDB(asset.object_id, asset_geojson, last_posting_time)
+                
+
+                    if inserted:
+                        self.updateLocalTable(point_ids)
+                else:
+                    print(error)
+
 
     def iterAssets(self):
         assets = self.engine.execute('SELECT * FROM assets')
@@ -35,6 +45,7 @@ class Tracer(object):
                 ORDER BY posting_time DESC
             ) AS s
             ORDER BY posting_time ASC
+            LIMIT 40
         '''
 
         recent_points = self.engine.execute(sa.text(recent_points), 
@@ -49,6 +60,7 @@ class Tracer(object):
         
         query = []
         posting_times = []
+        point_ids = []
 
         for point in points:
             posting_timestamp = int(point.posting_time.timestamp())
@@ -58,48 +70,76 @@ class Tracer(object):
                                            lon=point.lon, 
                                            timestamp=posting_timestamp)
             query.append(point_query)
-
-        query = '&'.join(query)
+            point_ids.append(point.id)
         
-        query_url = '{0}?compression=false&{1}'.format(self.osrm_endpoint, query)
+        if len(point_ids) > 10:
+            
+            query = '&'.join(query)
+            
+            query_url = '{0}?compression=false&{1}'.format(self.osrm_endpoint, query)
 
-        trace_resp = requests.get(query_url)
+            trace_resp = requests.get(query_url)
+            
+            return trace_resp.json(), max(posting_times), point_ids
 
-        return trace_resp.json(), max(posting_times)
+        return None, None, None
     
     def createTraceGeoJSON(self, trace_resp):
         
         try:
             matchings = trace_resp['matchings']
         except KeyError:
-            return None
+            return None, trace_resp
+        
+        flipped_geometry = []
+
+        for lat, lon in matchings[0]['geometry']:
+            flipped_geometry.append([lon, lat])
 
         feature =  {
             'type': 'LineString',
-            'coordinates': matchings[0]['geometry'],
+            'coordinates': flipped_geometry,
             'crs': {"type": "name", "properties": {"name": "EPSG:4326"}},
         }
         
-        return feature
+        return feature, None
 
     def insertCartoDB(self, asset_id, geojson, date_stamp):
         # After inserting update local table with inserted flag
-        insert = ''' 
-            INSERT INTO {table}
-              (id, date_stamp, the_geom)
-            VALUES ('{id}', '{date_stamp}', ST_GeomFromGeoJSON('{geojson}')
-        '''.format(table=CARTODB_SETTINGS['table'],
-                   id=asset_id,
-                   date_stamp=date_stamp,
-                   geojson=geojson)
         
-        user =  CARTODB_SETTINGS['user']
-        API_KEY = CARTODB_SETTINGS['api_key']
-        cartodb_domain = CARTODB_SETTINGS['domain']
+        if geojson:
+
+            insert = ''' 
+                INSERT INTO {table}
+                  (id, date_stamp, the_geom)
+                VALUES ('{id}', '{date_stamp}', ST_GeomFromGeoJSON('{geojson}'))
+            '''.format(table=CARTODB_SETTINGS['table'],
+                       id=asset_id,
+                       date_stamp=date_stamp,
+                       geojson=json.dumps(geojson))
+            
+            user =  CARTODB_SETTINGS['user']
+            api_key = CARTODB_SETTINGS['api_key']
+            
+            params = {
+                'q': insert,
+                'api_key': api_key,
+            }
+            
+            url = 'https://{user}.cartodb.com/api/v2/sql'.format(user=user)
+
+            carto = requests.post(url, data=params)
+            
+            if carto.status_code != 200:
+                print('CartoDB returned an error', cartodb.content)
+                return False
+            
+            print('insert successful', asset_id, date_stamp)
+            return True
         
-        carto = CartoDBAPIKey(API_KEY, cartodb_domain)
-        
-        carto.sql(insert)
+        print('No geojson')
+        return False
+
     
     def updateLocalTable(self, points):
         update = ''' 
@@ -108,7 +148,9 @@ class Tracer(object):
             WHERE id IN :ids
         '''
 
-        ids = tuple([r.id for r in points])
+        ids = tuple([r for r in points])
         
-        with self.engine.begin() as conn:
-            conn.execute(sa.text(update), ids=ids)
+        if ids:
+            
+            with self.engine.begin() as conn:
+                conn.execute(sa.text(update), ids=ids)

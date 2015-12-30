@@ -5,8 +5,10 @@ if __name__ == "__main__":
     from processors.slurper import Slurper, TestSlurper
     from processors.tracer import Tracer
     import logging
+    import time
 
     parser = argparse.ArgumentParser(description='Clear the streets')
+    
     parser.add_argument('--slurp', action='store_true',
                    help='Start slurping the feed')
     
@@ -34,7 +36,7 @@ if __name__ == "__main__":
         elif args.ve >= 2:
             log_level = logging.DEBUG
     logging.getLogger().setLevel(log_level)
-    
+
     if args.slurp and args.write_cartodb:
         print('Cannot slurp from city and write to CartoDB in the same process')
         sys.exit()
