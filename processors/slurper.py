@@ -7,6 +7,7 @@ import sqlalchemy as sa
 import logging
 import boto
 from boto.s3.key import Key
+from io import BytesIO
 
 from processors.config import DB_CONN, AWS_KEY, AWS_SECRET, S3_BUCKET, \
     CARTODB_SETTINGS

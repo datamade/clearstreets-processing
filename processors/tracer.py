@@ -1,6 +1,7 @@
 import sqlalchemy as sa
 from processors.config import OSRM_ENDPOINT, DB_CONN, CARTODB_SETTINGS
 import requests
+from requests.exceptions import ConnectionError
 import json
 import os
 from datetime import datetime
@@ -145,8 +146,14 @@ class Tracer(object):
             query = '&'.join(query)
             
             query_url = '{0}?compression=false&{1}'.format(self.osrm_endpoint, query)
-
-            trace_resp = requests.get(query_url)
+            
+            while True:
+                try:
+                    trace_resp = requests.get(query_url)
+                    break
+                except ConnectionError:
+                    # This means that the routing machine has not started up yet
+                    time.sleep(60)
             
             return trace_resp.json(), max(posting_times), point_ids
 
