@@ -190,7 +190,7 @@ class Slurper(object):
         conn.close()
         
         params = {
-            'q': 'SELECT * FROM {table}'.format(CARTODB_SETTINGS['table']),
+            'q': 'SELECT * FROM {table}'.format(table=CARTODB_SETTINGS['table']),
             'format': 'geojson',
         }
         
