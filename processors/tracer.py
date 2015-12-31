@@ -4,6 +4,7 @@ import requests
 import json
 import os
 from datetime import datetime
+from .slurper import Slurper
 
 class Tracer(object):
 
@@ -15,6 +16,7 @@ class Tracer(object):
         self.matching_beta = 5
         self.gps_precision = 10
         self.plow_ids = plow_ids
+        
 
     def run(self):
         for asset in self.iterAssets():

@@ -56,44 +56,8 @@ if __name__ == "__main__":
             time.sleep(10)
 
     if args.backup:
-        from datetime import datetime
-        import sqlalchemy as sa
-        
-        import boto
-        from boto.s3.key import Key
-        
-        from processors.config import DB_CONN, AWS_KEY, AWS_SECRET, S3_BUCKET
-        
-        engine = sa.create_engine(DB_CONN)
-
-        conn = engine.raw_connection()
-
-        s3conn = boto.connect_s3(AWS_KEY, AWS_SECRET)
-        bucket = s3conn.get_bucket(S3_BUCKET)
-
-        for table in ['route_points', 'assets']:
-            copy = ''' 
-                COPY (SELECT * FROM {table})
-                TO STDOUT WITH CSV HEADER DELIMITER ','
-            '''.format(table=table)
-            
-            now = datetime.now().strftime('%m-%d-%Y_%H:%M')
-            
-            fname = 'backups/{now}_{table}.csv'.format(now=now, 
-                                                       table=table)
-            
-            with open(fname, 'w') as f:
-                curs = conn.cursor()
-                curs.copy_expert(copy, f)
-            
-            key = Key(bucket)
-            key.key = fname
-            key.set_contents_from_filename(fname)
-            key.set_acl('public-read')
-
-        conn.close()
-        s3conn.close()
-
+        slurper = Slurper()
+        slurper.backup()
 
 
 

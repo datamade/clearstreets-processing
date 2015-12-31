@@ -5,8 +5,11 @@ import time
 import requests
 import sqlalchemy as sa
 import logging
+import boto
+from boto.s3.key import Key
 
-from processors.config import DB_CONN
+from processors.config import DB_CONN, AWS_KEY, AWS_SECRET, S3_BUCKET, \
+    CARTODB_SETTINGS
 from processors.poll import poll
 
 class Slurper(object):
@@ -44,6 +47,8 @@ class Slurper(object):
     def initializeDB(self, recreate=False):
 
         if recreate:
+            self.backup()
+            self.deleteFromCartoDB()
             self.route_points_table.drop(bind=self.engine, checkfirst=True)
             self.assets_table.drop(bind=self.engine, checkfirst=True)
 
@@ -153,6 +158,62 @@ class Slurper(object):
 
         for route_point in self.fetchData():
             self.insertPoints(route_point)
+
+    def backup(self):
+
+        conn = self.engine.raw_connection()
+
+        s3conn = boto.connect_s3(AWS_KEY, AWS_SECRET)
+        bucket = s3conn.get_bucket(S3_BUCKET)
+        
+        now = datetime.now().strftime('%m-%d-%Y_%H:%M')
+
+        for table in ['route_points', 'assets']:
+            copy = ''' 
+                COPY (SELECT * FROM {table})
+                TO STDOUT WITH CSV HEADER DELIMITER ','
+            '''.format(table=table)
+            
+            fname = 'backups/{now}_{table}.csv'.format(now=now, 
+                                                       table=table)
+            
+            with open(fname, 'w') as f:
+                curs = conn.cursor()
+                curs.copy_expert(copy, f)
+            
+            key = Key(bucket)
+            key.key = fname
+            key.set_contents_from_filename(fname)
+            key.set_acl('public-read')
+
+        conn.close()
+        
+        params = {
+            'q': 'SELECT * FROM {table}'.format(CARTODB_SETTINGS['table']),
+            'format': 'geojson',
+        }
+        
+        url = 'https://{user}.cartodb.com/api/v2/sql'.format(user=CARTODB_SETTINGS['user'])
+        
+        geojson_dump = requests.get(url, params=params)
+        
+        key.key = 'backups/cartodb_{now}.geojson'.format(now=now)
+        key.set_contents_from_file(BytesIO(geojson_dump.content))
+        key.set_acl('public-read')
+
+        s3conn.close()
+    
+    def deleteFromCartoDB(self):
+        
+        params = {
+            'q': 'DELETE * FROM {table}'.format(CARTODB_SETTINGS['table']),
+            'api_key': CARTODB_SETTINGS['api_key'],
+        }
+        
+        url = 'https://{user}.cartodb.com/api/v2/sql'.format(user=CARTODB_SETTINGS['user'])
+
+        delete = requests.get(url, params=params)
+
 
 class TestSlurper(Slurper) :
     def fetchData(self):
