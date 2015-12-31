@@ -207,7 +207,7 @@ class Slurper(object):
     def deleteFromCartoDB(self):
         
         params = {
-            'q': 'DELETE * FROM {table}'.format(CARTODB_SETTINGS['table']),
+            'q': 'DELETE * FROM {table}'.format(table=CARTODB_SETTINGS['table']),
             'api_key': CARTODB_SETTINGS['api_key'],
         }
         
