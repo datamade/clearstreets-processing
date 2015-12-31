@@ -167,7 +167,7 @@ class Slurper(object):
         s3conn = boto.connect_s3(AWS_KEY, AWS_SECRET)
         bucket = s3conn.get_bucket(S3_BUCKET)
         
-        now = datetime.now().strftime('%m-%d-%Y_%H:%M')
+        now = datetime.datetime.now().strftime('%m-%d-%Y_%H:%M')
 
         for table in ['route_points', 'assets']:
             copy = ''' 
