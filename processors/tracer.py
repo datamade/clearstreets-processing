@@ -2,15 +2,19 @@ import sqlalchemy as sa
 from processors.config import OSRM_ENDPOINT, DB_CONN, CARTODB_SETTINGS
 import requests
 import json
+import os
+from datetime import datetime
 
 class Tracer(object):
 
-    def __init__(self):
+    def __init__(self, plow_ids=[]):
         self.osrm_endpoint = OSRM_ENDPOINT
         self.engine = sa.create_engine(DB_CONN)
         
         self.point_limit = 40
         self.matching_beta = 5
+        self.gps_precision = 10
+        self.plow_ids = plow_ids
 
     def run(self):
         for asset in self.iterAssets():
@@ -29,9 +33,58 @@ class Tracer(object):
                 else:
                     print(error, asset.object_id, last_posting_time)
 
+    
+    def dumpGeoJSON(self):
+        for asset in self.iterAssets():
+            points = self.getRecentPoints(asset)
+            trace_resp, last_posting_time, point_ids = self.getTrace(points)
+            
+            asset_collection = {
+                'type': 'FeatureCollection',
+                'features': []
+            }
+
+            if trace_resp:
+                asset_geojson, error = self.createTraceGeoJSON(trace_resp)
+                
+                if not error:
+                    feature = {
+                        'type': 'Feature',
+                        'geometry': asset_geojson,
+                        'properties': {}
+                    }
+                    asset_collection['features'].append(feature)
+                    
+                    self.updateLocalTable(point_ids)
+            
+            dirname = 'output_{sigma}_{beta}'.format(sigma=self.gps_precision, 
+                                                     beta=self.matching_beta)
+            try:
+                os.mkdir(dirname)
+            except FileExistsError:
+                pass
+           
+            filename = '{0}/{1}.geojson'.format(dirname, asset.object_id) 
+            if os.path.exists(filename):
+                contents = json.load(open(filename))
+                contents['features'].extend(asset_collection['features'])
+                asset_collection = contents
+
+            with open(filename, 'w') as f:
+                f.write(json.dumps(asset_collection))
+
 
     def iterAssets(self):
-        assets = self.engine.execute('SELECT * FROM assets')
+        
+        assets = 'SELECT * FROM assets'
+        query_kwargs = {}
+
+        if self.plow_ids:
+            assets = sa.text('SELECT * FROM assets WHERE object_id IN :plow_ids')
+            query_kwargs['plow_ids'] = tuple(self.plow_ids)
+            
+
+        assets = self.engine.execute(assets, **query_kwargs)
 
         for asset in assets:
             yield asset
@@ -67,7 +120,7 @@ class Tracer(object):
 
     def getTrace(self, points):
         
-        point_fmt = 'loc={lat},{lon}&t={timestamp}&matching_beta={matching_beta}'
+        point_fmt = 'loc={lat},{lon}&t={timestamp}&matching_beta={matching_beta}&gps_precision={gps_precision}'
         
         query = []
         posting_times = []
@@ -80,7 +133,8 @@ class Tracer(object):
             point_query = point_fmt.format(lat=point.lat, 
                                            lon=point.lon, 
                                            timestamp=posting_timestamp,
-                                           matching_beta=self.matching_beta)
+                                           matching_beta=self.matching_beta,
+                                           gps_precision=self.gps_precision)
             query.append(point_query)
             point_ids.append(point.id)
         
