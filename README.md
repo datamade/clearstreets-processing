@@ -8,6 +8,6 @@ TODO
 
 ## Copyright
 
-Copyright (c) 2015 Open City. Released under the MIT License.
+Copyright (c) 2016 DataMade. Released under the MIT License.
 
-See [LICENSE](https://github.com/open-city/clearstreets-processing/wiki/License) for details 
+See [LICENSE](https://github.com/datamade/clearstreets-processing/wiki/License) for details 
