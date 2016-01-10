@@ -6,6 +6,7 @@ import json
 import os
 from datetime import datetime
 from .slurper import Slurper
+import time
 
 class Tracer(object):
 
