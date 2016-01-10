@@ -151,7 +151,8 @@ class Slurper(object):
             self.engine.dispose()
 
     def formatTime(self, s) :
-        return datetime.datetime(*time.strptime(s, self.time_format)[:6])
+        from dateutil import parser
+        return parser.parse(s)
 
     def run(self, recreate=False):
 
