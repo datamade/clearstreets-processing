@@ -208,7 +208,7 @@ class Tracer(object):
             carto = requests.post(url, data=params)
             
             if carto.status_code != 200:
-                print('CartoDB returned an error', cartodb.content)
+                print('CartoDB returned an error', carto.content)
                 return False
             
             return True
