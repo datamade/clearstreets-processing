@@ -19,6 +19,7 @@ class Tracer(object):
         self.gps_precision = 10
         self.plow_ids = plow_ids
         
+        self.overlap = 10
 
     def run(self):
         for asset in self.iterAssets():
@@ -111,10 +112,10 @@ class Tracer(object):
               WHERE object_id = :object_id
                 AND inserted = TRUE
               ORDER BY posting_time DESC
-              LIMIT 1
+              LIMIT {overlap}
             )
             ORDER BY posting_time ASC
-        '''
+        '''.format(overlap=self.overlap)
 
         recent_points = self.engine.execute(sa.text(recent_points), 
                                             object_id=asset.object_id,
