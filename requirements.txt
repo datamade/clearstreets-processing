@@ -1,5 +1,5 @@
 requests
 psycopg2
 sqlalchemy
-scipy
 boto
+python-dateutil
