@@ -107,6 +107,8 @@ class Tracer(object):
                 SELECT MAX(posting_time) FROM route_points
                 WHERE inserted = TRUE
                   AND object_id = :object_id
+                ORDER BY posting_time
+                LIMIT 5
               )
               
               UNION
