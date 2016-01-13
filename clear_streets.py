@@ -49,7 +49,7 @@ if __name__ == "__main__":
         slurper.run(recreate=args.recreate_tables)
     
     if args.write_cartodb:
-        tracer = Tracer()
+        tracer = Tracer(test_mode=args.test_mode)
 
         while True:
             tracer.run()

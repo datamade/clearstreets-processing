@@ -10,10 +10,11 @@ import time
 
 class Tracer(object):
 
-    def __init__(self, plow_ids=[]):
+    def __init__(self, plow_ids=[], test_mode=False):
         self.osrm_endpoint = OSRM_ENDPOINT
         self.engine = sa.create_engine(DB_CONN)
-        
+        self.test_mode = test_mode
+
         self.point_limit = 40
         self.matching_beta = 5
         self.gps_precision = 10
@@ -23,7 +24,7 @@ class Tracer(object):
 
     def run(self):
         for asset in self.iterAssets():
-            points = self.getRecentPoints(asset)
+            points = [dict(zip(r.keys(), r.values())) for r in self.getRecentPoints(asset)]
             trace_resp, last_posting_time, point_ids = self.getTrace(points)
             
             if trace_resp:
@@ -41,7 +42,7 @@ class Tracer(object):
     
     def dumpGeoJSON(self):
         for asset in self.iterAssets():
-            points = self.getRecentPoints(asset)
+            points = [dict(zip(r.keys(), r.values())) for r in self.getRecentPoints(asset)]
             trace_resp, last_posting_time, point_ids = self.getTrace(points)
             
             asset_collection = {
@@ -95,31 +96,37 @@ class Tracer(object):
             yield asset
     
     def getRecentPoints(self, asset):
+        # Find max posting time where inserted is true
+        # Return all points newer than that
+        # Return max inserted point and N previous points
         recent_points = ''' 
-            (
-              SELECT * FROM (
-                SELECT * 
-                FROM route_points
-                WHERE object_id = :object_id
-                  AND inserted = FALSE
-                ORDER BY posting_time DESC
-              ) AS s
-              ORDER BY posting_time ASC
-              LIMIT :limit
-            ) UNION (
-              SELECT *
-                FROM route_points
+            SELECT * FROM (
+              SELECT * FROM route_points
               WHERE object_id = :object_id
-                AND inserted = TRUE
+                AND posting_time > (
+                SELECT MAX(posting_time) FROM route_points
+                WHERE inserted = TRUE
+                  AND object_id = :object_id
+              )
+              
+              UNION
+             
+              SELECT * FROM route_points
+              WHERE object_id = :object_id
+                AND posting_time <= (
+                SELECT MAX(posting_time) FROM route_points
+                WHERE inserted = TRUE
+                  AND object_id = :object_id
+              )
               ORDER BY posting_time DESC
               LIMIT {overlap}
-            )
-            ORDER BY posting_time ASC
+              ) AS subq
+            ORDER BY posting_time
+
         '''.format(overlap=self.overlap)
 
         recent_points = self.engine.execute(sa.text(recent_points), 
-                                            object_id=asset.object_id,
-                                            limit=self.point_limit)
+                                            object_id=asset.object_id)
         
         return recent_points
 
@@ -132,26 +139,47 @@ class Tracer(object):
         point_ids = []
 
         for point in points:
-            posting_timestamp = int(point.posting_time.timestamp())
-            posting_times.append(point.posting_time)
+            posting_timestamp = int(point['posting_time'].timestamp())
+            posting_times.append(point['posting_time'])
 
-            point_query = point_fmt.format(lat=point.lat, 
-                                           lon=point.lon, 
+            point_query = point_fmt.format(lat=point['lat'], 
+                                           lon=point['lon'], 
                                            timestamp=posting_timestamp,
                                            matching_beta=self.matching_beta,
                                            gps_precision=self.gps_precision)
             query.append(point_query)
-            point_ids.append(point.id)
+            point_ids.append(point['id'])
         
-        if len(point_ids) > 10:
+        if len(point_ids) > 5:
             
             query = '&'.join(query)
-            
             query_url = '{0}?compression=false&{1}'.format(self.osrm_endpoint, query)
             
             while True:
                 try:
                     trace_resp = requests.get(query_url)
+                    # if trace_resp.json()['status'] != 200:
+
+                    #     geojson = {'type': 'FeatureCollection', 'features': []}
+
+                    #     for point in points:
+                    #         feat = {
+                    #             'type': 'Feature', 
+                    #             'geometry': {
+                    #                 'type': 'Point', 
+                    #                 'coordinates': [point['lon'], point['lat']]
+                    #             },
+                    #             'properties': {
+                    #                 'timestamp': point['posting_time'].isoformat(),
+                    #                 'object_id': point['object_id']
+                    #             }
+                    #         }
+                    #         geojson['features'].append(feat)
+                    #     print(json.dumps(geojson))
+                        # bad_index = trace_resp.json()['status_message'].rsplit(' ', 1)[-1]
+                        # points.pop(int(bad_index))
+                        # return self.getTrace(points)
+
                     break
                 except ConnectionError:
                     # This means that the routing machine has not started up yet
@@ -185,7 +213,7 @@ class Tracer(object):
         # After inserting update local table with inserted flag
         
         if geojson:
-
+            
             insert = ''' 
                 INSERT INTO {table}
                   (id, date_stamp, the_geom)
