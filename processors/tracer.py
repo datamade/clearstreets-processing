@@ -25,32 +25,44 @@ class Tracer(object):
     def run(self):
         for asset in self.iterAssets():
             points = [dict(zip(r.keys(), r.values())) for r in self.getRecentPoints(asset)]
-            trace_resp, last_posting_time, point_ids = self.getTrace(points)
+
+            if points:
+                trace_resp = self.getTrace(points)
             
-            if trace_resp:
-                asset_geojson, error = self.createTraceGeoJSON(trace_resp)
+            else:
+                continue
+            if trace_resp.json()['status'] == 200:
+                asset_geojson, error = self.createTraceGeoJSON(trace_resp.json())
                 
                 if not error:
+                    last_posting_time = max([p['posting_time'] for p in points])
                     inserted = self.insertCartoDB(asset.object_id, asset_geojson, last_posting_time)
                 
 
                     if inserted:
-                        self.updateLocalTable(point_ids)
+                        self.updateLocalTable([p['id'] for p in points])
                 else:
                     print(error, asset.object_id, last_posting_time)
+            elif trace_resp.json()['status'] == 208:
+                if points:
+                    earliest_point = min(points, key=lambda x: x['posting_time'])
+                    self.markUnmatchable(earliest_point['id'])
 
-    
+            else:
+                print(trace_resp.url, asset.object_id)
+                print(trace_resp.json())
+
     def dumpGeoJSON(self):
         for asset in self.iterAssets():
             points = [dict(zip(r.keys(), r.values())) for r in self.getRecentPoints(asset)]
-            trace_resp, last_posting_time, point_ids = self.getTrace(points)
+            trace_resp = self.getTrace(points)
             
             asset_collection = {
                 'type': 'FeatureCollection',
                 'features': []
             }
 
-            if trace_resp:
+            if trace_resp.status_code == 200:
                 asset_geojson, error = self.createTraceGeoJSON(trace_resp)
                 
                 if not error:
@@ -95,37 +107,60 @@ class Tracer(object):
         for asset in assets:
             yield asset
     
-    def getRecentPoints(self, asset):
+    def pointQuery(self):
         # Find max posting time where inserted is true
         # Return all points newer than that
         # Return max inserted point and N previous points
-        recent_points = ''' 
+        
+        return ''' 
             SELECT * FROM (
               SELECT * FROM route_points
               WHERE object_id = :object_id
-                AND posting_time > (
-                SELECT MAX(posting_time) FROM route_points
-                WHERE inserted = TRUE
-                  AND object_id = :object_id
-              )
+                AND unmatchable = FALSE
+                AND posting_time > COALESCE((
+                  SELECT 
+                    MAX(posting_time)
+                  FROM route_points
+                  WHERE inserted = TRUE
+                    AND object_id = :object_id
+              ), '1900-01-01'::timestamp)
               
               UNION
              
               SELECT * FROM route_points
               WHERE object_id = :object_id
-                AND posting_time <= (
-                SELECT MAX(posting_time) FROM route_points
-                WHERE inserted = TRUE
-                  AND object_id = :object_id
-              )
+                AND unmatchable = FALSE
+                AND posting_time <= COALESCE((
+                  SELECT 
+                    MAX(posting_time)
+                  FROM route_points
+                  WHERE inserted = TRUE
+                    AND object_id = :object_id
+              ), '1900-01-01'::timestamp)
               ORDER BY posting_time DESC
               LIMIT {overlap}
               ) AS subq
             ORDER BY posting_time
+            LIMIT 50
 
         '''.format(overlap=self.overlap)
+        
 
-        recent_points = self.engine.execute(sa.text(recent_points), 
+    def testPointQuery(self):
+        return ''' 
+            SELECT * FROM route_points
+            WHERE inserted = FALSE
+              AND object_id = :object_id
+            LIMIT 10
+        '''
+
+    def getRecentPoints(self, asset):
+        query = self.pointQuery()
+
+        if self.test_mode:
+            query = self.testPointQuery()
+
+        recent_points = self.engine.execute(sa.text(query), 
                                             object_id=asset.object_id)
         
         return recent_points
@@ -150,44 +185,41 @@ class Tracer(object):
             query.append(point_query)
             point_ids.append(point['id'])
         
-        if len(point_ids) > 5:
             
-            query = '&'.join(query)
-            query_url = '{0}?compression=false&{1}'.format(self.osrm_endpoint, query)
-            
-            while True:
-                try:
-                    trace_resp = requests.get(query_url)
-                    # if trace_resp.json()['status'] != 200:
+        query = '&'.join(query)
+        query_url = '{0}?compression=false&{1}'.format(self.osrm_endpoint, query)
+        
+        points = sorted(points, 
+                        key=lambda x: x['posting_time'], 
+                        reverse=True)
 
-                    #     geojson = {'type': 'FeatureCollection', 'features': []}
+        try:
+            trace_resp = requests.get(query_url)
 
-                    #     for point in points:
-                    #         feat = {
-                    #             'type': 'Feature', 
-                    #             'geometry': {
-                    #                 'type': 'Point', 
-                    #                 'coordinates': [point['lon'], point['lat']]
-                    #             },
-                    #             'properties': {
-                    #                 'timestamp': point['posting_time'].isoformat(),
-                    #                 'object_id': point['object_id']
-                    #             }
-                    #         }
-                    #         geojson['features'].append(feat)
-                    #     print(json.dumps(geojson))
-                        # bad_index = trace_resp.json()['status_message'].rsplit(' ', 1)[-1]
-                        # points.pop(int(bad_index))
-                        # return self.getTrace(points)
+                # geojson = {'type': 'FeatureCollection', 'features': []}
 
-                    break
-                except ConnectionError:
-                    # This means that the routing machine has not started up yet
-                    time.sleep(60)
-            
-            return trace_resp.json(), max(posting_times), point_ids
+                # for point in points:
+                #     feat = {
+                #         'type': 'Feature', 
+                #         'geometry': {
+                #             'type': 'Point', 
+                #             'coordinates': [point['lon'], point['lat']]
+                #         },
+                #         'properties': {
+                #             'timestamp': point['posting_time'].isoformat(),
+                #             'object_id': point['object_id']
+                #         }
+                #     }
+                #     geojson['features'].append(feat)
+                # print(json.dumps(geojson))
+                # 
+                # print('point count', len(points))
+                
+        except ConnectionError:
+            return None
+        
+        return trace_resp
 
-        return None, None, None
     
     def createTraceGeoJSON(self, trace_resp):
         
@@ -242,7 +274,16 @@ class Tracer(object):
             return True
         
         return False
+    
+    def markUnmatchable(self, point_id):
+        mark = ''' 
+            UPDATE route_points SET
+              unmatchable = TRUE
+            WHERE id = :point_id
+        '''
 
+        with self.engine.begin() as conn:
+            conn.execute(sa.text(mark), point_id=point_id)
     
     def updateLocalTable(self, points):
         update = ''' 
