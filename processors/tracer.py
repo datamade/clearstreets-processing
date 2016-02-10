@@ -141,7 +141,6 @@ class Tracer(object):
               LIMIT {overlap}
               ) AS subq
             ORDER BY posting_time
-            LIMIT 50
 
         '''.format(overlap=self.overlap)
         
