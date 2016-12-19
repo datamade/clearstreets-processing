@@ -67,7 +67,10 @@ class Tracer(object):
                             'type': 'Point', 
                             'coordinates': [point['lon'], point['lat']]
                         },
-                        'properties': {}
+                        'properties': {
+                            'asset_id': asset.object_id, 
+                            'timestamp': point['posting_time']
+                        },
                     }
                     asset_collection['features'].append(feature)
                 
@@ -166,7 +169,7 @@ class Tracer(object):
 
         return '''
             SELECT * FROM (
-              SELECT * FROM route_points
+              (SELECT * FROM route_points
               WHERE object_id = :object_id
                 AND unmatchable = FALSE
                 AND posting_time > COALESCE((
@@ -176,6 +179,7 @@ class Tracer(object):
                   WHERE inserted = TRUE
                     AND object_id = :object_id
               ), '1900-01-01'::timestamp)
+              LIMIT {overlap})
 
               UNION
 
