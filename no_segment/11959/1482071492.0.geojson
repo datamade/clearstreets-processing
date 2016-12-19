@@ -1,1 +1,1 @@
-{"type": "FeatureCollection", "features": [{"properties": {}, "type": "Feature", "geometry": {"coordinates": [-87.718475, 41.831024], "type": "Point"}}, {"properties": {}, "type": "Feature", "geometry": {"coordinates": [-87.7185, 41.8311], "type": "Point"}}]}
+{"features": [{"geometry": {"coordinates": [-87.718475, 41.831024], "type": "Point"}, "properties": {}, "type": "Feature"}, {"geometry": {"coordinates": [-87.7185, 41.8311], "type": "Point"}, "properties": {}, "type": "Feature"}], "type": "FeatureCollection"}
