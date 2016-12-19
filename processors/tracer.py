@@ -19,7 +19,8 @@ class Tracer(object):
         self.matching_beta = 5
         self.gps_precision = 10
         self.plow_ids = plow_ids
-        
+        # self.plow_ids = ['11661', '11981']
+
         self.overlap = 10
 
     def run(self):
@@ -28,35 +29,86 @@ class Tracer(object):
 
             if points:
                 trace_resp = self.getTrace(points)
-            
+
             else:
                 continue
-            if trace_resp.json()['status'] == 200:
-                asset_geojson, error = self.createTraceGeoJSON(trace_resp.json())
-                
-                if not error:
-                    last_posting_time = max([p['posting_time'] for p in points])
-                    inserted = self.insertCartoDB(asset.object_id, asset_geojson, last_posting_time)
-                
+            
+            if trace_resp.json()['code'] == 'Ok':
+                # print(json.dumps(trace_resp.json(), indent=4))
+                # asset_geojson, error = self.createTraceGeoJSON(trace_resp.json())
 
-                    if inserted:
-                        self.updateLocalTable([p['id'] for p in points])
-                else:
-                    print(error, asset.object_id, last_posting_time)
-            elif trace_resp.json()['status'] == 208:
-                if points:
-                    earliest_point = min(points, key=lambda x: x['posting_time'])
-                    self.markUnmatchable(earliest_point['id'])
+                last_posting_time = max([p['posting_time'] for p in points])
+                best_match = sorted(trace_resp.json()['matchings'],
+                                    key=lambda x: x['confidence'],
+                                    reverse=True)[0]
 
+                asset_geojson = best_match['geometry']
+                
+                asset_geojson['crs'] = {"type": "name", "properties": {"name": "EPSG:4326"}}
+
+                last_posting_time = max([p['posting_time'] for p in points])
+                inserted = self.insertCartoDB(asset.object_id, asset_geojson, last_posting_time)
+
+                if inserted:
+                    self.updateLocalTable([p['id'] for p in points])
+            
             else:
-                print(trace_resp.url, asset.object_id)
-                print(trace_resp.json())
+                
+                asset_collection = {
+                    'type': 'FeatureCollection',
+                    'features': []
+                }
+                
+                for point in points:
+                    self.markUnmatchable(point['id'])
+                    feature = {
+                        'type': 'Feature',
+                        'geometry': {
+                            'type': 'Point', 
+                            'coordinates': [point['lon'], point['lat']]
+                        },
+                        'properties': {}
+                    }
+                    asset_collection['features'].append(feature)
+                
+                max_posting_time = max([p['posting_time'] for p in points])
+
+                if trace_resp.json()['code'] == 'NoSegment':
+                    print('NO SEGMENT')
+                    
+                    try:
+                        os.mkdir('no_segment/{}'.format(asset.object_id))
+                    except OSError:
+                        pass
+                    
+                    file_path = 'no_segment/{0}/{1}.geojson'.format(asset.object_id, max_posting_time.timestamp())
+                    
+                    with open(file_path, 'w') as f:
+                        f.write(json.dumps(asset_collection))
+
+
+                elif trace_resp.json()['code'] == 'NoMatch':
+                    print('NO MATCH')
+                
+                    try:
+                        os.mkdir('no_match/{}'.format(asset.object_id))
+                    except OSError:
+                        pass
+                    
+                    file_path = 'no_match/{0}/{1}.geojson'.format(asset.object_id, max_posting_time.timestamp())
+                    
+                    with open(file_path, 'w') as f:
+                        f.write(json.dumps(asset_collection))
+
+                self.updateLocalTable([p['id'] for p in points])
+
+
 
     def dumpGeoJSON(self):
         for asset in self.iterAssets():
             points = [dict(zip(r.keys(), r.values())) for r in self.getRecentPoints(asset)]
             trace_resp = self.getTrace(points)
-            
+
             asset_collection = {
                 'type': 'FeatureCollection',
                 'features': []
@@ -64,7 +116,7 @@ class Tracer(object):
 
             if trace_resp.status_code == 200:
                 asset_geojson, error = self.createTraceGeoJSON(trace_resp)
-                
+
                 if not error:
                     feature = {
                         'type': 'Feature',
@@ -72,17 +124,17 @@ class Tracer(object):
                         'properties': {}
                     }
                     asset_collection['features'].append(feature)
-                    
+
                     self.updateLocalTable(point_ids)
-            
-            dirname = 'output_{sigma}_{beta}'.format(sigma=self.gps_precision, 
+
+            dirname = 'output_{sigma}_{beta}'.format(sigma=self.gps_precision,
                                                      beta=self.matching_beta)
             try:
                 os.mkdir(dirname)
             except FileExistsError:
                 pass
-           
-            filename = '{0}/{1}.geojson'.format(dirname, asset.object_id) 
+
+            filename = '{0}/{1}.geojson'.format(dirname, asset.object_id)
             if os.path.exists(filename):
                 contents = json.load(open(filename))
                 contents['features'].extend(asset_collection['features'])
@@ -93,45 +145,45 @@ class Tracer(object):
 
 
     def iterAssets(self):
-        
+
         assets = 'SELECT * FROM assets'
         query_kwargs = {}
 
         if self.plow_ids:
             assets = sa.text('SELECT * FROM assets WHERE object_id IN :plow_ids')
             query_kwargs['plow_ids'] = tuple(self.plow_ids)
-            
+
 
         assets = self.engine.execute(assets, **query_kwargs)
 
         for asset in assets:
             yield asset
-    
+
     def pointQuery(self):
         # Find max posting time where inserted is true
         # Return all points newer than that
         # Return max inserted point and N previous points
-        
-        return ''' 
+
+        return '''
             SELECT * FROM (
               SELECT * FROM route_points
               WHERE object_id = :object_id
                 AND unmatchable = FALSE
                 AND posting_time > COALESCE((
-                  SELECT 
+                  SELECT
                     MAX(posting_time)
                   FROM route_points
                   WHERE inserted = TRUE
                     AND object_id = :object_id
               ), '1900-01-01'::timestamp)
-              
+
               UNION
-             
+
               SELECT * FROM route_points
               WHERE object_id = :object_id
                 AND unmatchable = FALSE
                 AND posting_time <= COALESCE((
-                  SELECT 
+                  SELECT
                     MAX(posting_time)
                   FROM route_points
                   WHERE inserted = TRUE
@@ -143,10 +195,10 @@ class Tracer(object):
             ORDER BY posting_time
 
         '''.format(overlap=self.overlap)
-        
+
 
     def testPointQuery(self):
-        return ''' 
+        return '''
             SELECT * FROM route_points
             WHERE inserted = FALSE
               AND object_id = :object_id
@@ -159,37 +211,34 @@ class Tracer(object):
         if self.test_mode:
             query = self.testPointQuery()
 
-        recent_points = self.engine.execute(sa.text(query), 
+        recent_points = self.engine.execute(sa.text(query),
                                             object_id=asset.object_id)
-        
+
         return recent_points
 
     def getTrace(self, points):
-        
-        point_fmt = 'loc={lat},{lon}&t={timestamp}&matching_beta={matching_beta}&gps_precision={gps_precision}'
-        
-        query = []
+
+        point_fmt = '{coords}?timestamps={timestamps}&geometries=geojson'
+
         posting_times = []
-        point_ids = []
+        coords = []
 
         for point in points:
             posting_timestamp = int(point['posting_time'].timestamp())
-            posting_times.append(point['posting_time'])
+            posting_times.append(str(posting_timestamp))
 
-            point_query = point_fmt.format(lat=point['lat'], 
-                                           lon=point['lon'], 
-                                           timestamp=posting_timestamp,
-                                           matching_beta=self.matching_beta,
-                                           gps_precision=self.gps_precision)
-            query.append(point_query)
-            point_ids.append(point['id'])
-        
-            
-        query = '&'.join(query)
-        query_url = '{0}?compression=false&{1}'.format(self.osrm_endpoint, query)
-        
-        points = sorted(points, 
-                        key=lambda x: x['posting_time'], 
+            coords.append(','.join([str(point['lon']), str(point['lat'])]))
+
+        timestamps = ';'.join(posting_times)
+        coords = ';'.join(coords)
+
+        query = point_fmt.format(coords=coords,
+                                 timestamps=timestamps)
+
+        query_url = '{0}/{1}'.format(self.osrm_endpoint, query)
+
+        points = sorted(points,
+                        key=lambda x: x['posting_time'],
                         reverse=True)
 
         try:
@@ -199,9 +248,9 @@ class Tracer(object):
 
                 # for point in points:
                 #     feat = {
-                #         'type': 'Feature', 
+                #         'type': 'Feature',
                 #         'geometry': {
-                #             'type': 'Point', 
+                #             'type': 'Point',
                 #             'coordinates': [point['lon'], point['lat']]
                 #         },
                 #         'properties': {
@@ -211,22 +260,22 @@ class Tracer(object):
                 #     }
                 #     geojson['features'].append(feat)
                 # print(json.dumps(geojson))
-                # 
+                #
                 # print('point count', len(points))
-                
+
         except ConnectionError:
             return None
-        
+
         return trace_resp
 
-    
+
     def createTraceGeoJSON(self, trace_resp):
-        
+
         try:
             matchings = trace_resp['matchings']
         except KeyError:
             return None, trace_resp
-        
+
         flipped_geometry = []
 
         for lat, lon in matchings[0]['geometry']:
@@ -237,15 +286,15 @@ class Tracer(object):
             'coordinates': flipped_geometry,
             'crs': {"type": "name", "properties": {"name": "EPSG:4326"}},
         }
-        
+
         return feature, None
 
     def insertCartoDB(self, asset_id, geojson, date_stamp):
         # After inserting update local table with inserted flag
-        
+
         if geojson:
-            
-            insert = ''' 
+
+            insert = '''
                 INSERT INTO {table}
                   (id, date_stamp, the_geom)
                 VALUES ('{id}', '{date_stamp}', ST_GeomFromGeoJSON('{geojson}'))
@@ -253,29 +302,29 @@ class Tracer(object):
                        id=asset_id,
                        date_stamp=date_stamp,
                        geojson=json.dumps(geojson))
-            
+
             user =  CARTODB_SETTINGS['user']
             api_key = CARTODB_SETTINGS['api_key']
-            
+
             params = {
                 'q': insert,
                 'api_key': api_key,
             }
-            
+
             url = 'https://{user}.cartodb.com/api/v2/sql'.format(user=user)
 
             carto = requests.post(url, data=params)
-            
+
             if carto.status_code != 200:
                 print('CartoDB returned an error', carto.content)
                 return False
-            
+
             return True
-        
+
         return False
-    
+
     def markUnmatchable(self, point_id):
-        mark = ''' 
+        mark = '''
             UPDATE route_points SET
               unmatchable = TRUE
             WHERE id = :point_id
@@ -283,17 +332,17 @@ class Tracer(object):
 
         with self.engine.begin() as conn:
             conn.execute(sa.text(mark), point_id=point_id)
-    
+
     def updateLocalTable(self, points):
-        update = ''' 
+        update = '''
             UPDATE route_points SET
               inserted = TRUE
             WHERE id IN :ids
         '''
 
         ids = tuple([r for r in points])
-        
+
         if ids:
-            
+
             with self.engine.begin() as conn:
                 conn.execute(sa.text(update), ids=ids)
