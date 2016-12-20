@@ -69,7 +69,7 @@ class Tracer(object):
                         },
                         'properties': {
                             'asset_id': asset.object_id, 
-                            'timestamp': point['posting_time']
+                            'timestamp': point['posting_time'].isoformat()
                         },
                     }
                     asset_collection['features'].append(feature)
